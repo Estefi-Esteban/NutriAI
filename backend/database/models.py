@@ -80,7 +80,7 @@ class UserProfile(Base):
     dieta_tipo = Column(Enum(DietaTipo), nullable=False)
     alergias = Column(JSON, default=list)
     intolerancias = Column(JSON, default=list)
-    presupuesto_semanal = Column(Float, nullable=False)
+    presupuesto_semanal = Column(Float, nullable=True)
     tiempo_cocina_min = Column(Integer, nullable=False)
     personas_en_casa = Column(Integer, nullable=False, default=1)
 

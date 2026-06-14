@@ -141,7 +141,7 @@ def guardar_perfil(db: Session, user_id: int, datos: dict) -> UserProfile:
         dieta_tipo=_to_enum(DietaTipo, datos["dieta_tipo"]),
         alergias=datos.get("alergias", []),
         intolerancias=datos.get("intolerancias", []),
-        presupuesto_semanal=float(datos["presupuesto_semanal"]),
+        presupuesto_semanal=float(datos["presupuesto_semanal"]) if datos.get("presupuesto_semanal") else None,
         tiempo_cocina_min=int(datos["tiempo_cocina_min"]),
         personas_en_casa=int(datos.get("personas_en_casa", 1)),
 
