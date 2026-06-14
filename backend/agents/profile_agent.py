@@ -6,9 +6,10 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 from typing import Optional
 from backend.database.models import UserProfile
-from backend.database.connection import session
+from backend.database.connection import SessionLocal
 from backend.config import google_api_key
 from backend.agents.prompts.prompt_loader import load_prompt
+from backend.database.repositories.user_repository import guardar_perfil
 
 
 """
