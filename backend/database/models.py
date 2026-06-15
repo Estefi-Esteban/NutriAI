@@ -10,6 +10,7 @@ class ObjetivoPrincipal(str, enum.Enum):
     perder_grasa = "perder_grasa"
     ganar_musculo = "ganar_musculo"
     mantenimiento = "mantenimiento"
+    recomposicion_corporal = "recomposicion_corporal" 
     volumen = "volumen"
 
 class VelocidadObjetivo(str, enum.Enum):

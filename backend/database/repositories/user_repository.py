@@ -45,6 +45,93 @@ def _to_enum(enum_class, value):
         )
 
 
+def _normalizar_objetivo(valor: str) -> str:
+    """
+    Convierte el texto libre del agente al valor exacto del Enum ObjetivoPrincipal.
+    """
+    if not valor:
+        return "mantenimiento"
+    v = valor.lower().strip()
+
+    tiene_perder = any(x in v for x in ["perder", "adelgaz", "bajar", "reducir grasa"])
+    tiene_musculo = any(x in v for x in ["ganar", "musculo", "músculo", "masa muscular"])
+
+    if tiene_perder and tiene_musculo:
+        return "recomposicion_corporal"
+    if any(x in v for x in ["recomposic"]):
+        return "recomposicion_corporal"
+    if tiene_perder:
+        return "perder_grasa"
+    if tiene_musculo:
+        return "ganar_musculo"
+    if any(x in v for x in ["volumen", "bulk", "voluminiz"]):
+        return "volumen"
+    if any(x in v for x in ["mantener", "mantenimiento", "salud"]):
+        return "mantenimiento"
+
+    return "mantenimiento"  # default seguro
+
+
+def _normalizar_dieta(valor: str) -> str:
+    """
+    Convierte el texto libre del agente al valor exacto del Enum DietaTipo.
+    """
+    if not valor:
+        return "omnivoro"
+    v = valor.lower().strip()
+
+    if any(x in v for x in ["vegano", "vegan"]):
+        return "vegano"
+    if "vegetariano" in v:
+        return "vegetariano"
+    if any(x in v for x in ["gluten"]):
+        return "sin_gluten"
+    if any(x in v for x in ["cetog", "keto"]):
+        return "cetogenica"
+    if "paleo" in v:
+        return "paleo"
+
+    return "omnivoro"  # default seguro
+
+
+def _normalizar_actividad(valor: str) -> str:
+    """
+    Convierte el texto libre del agente al valor exacto del Enum NivelActividad.
+    """
+    if not valor:
+        return "sedentario"
+    v = valor.lower().strip()
+
+    if any(x in v for x in ["muy activo", "muy_activo", "intenso", "alta"]):
+        return "muy_activo"
+    if any(x in v for x in ["activo", "frecuente"]):
+        return "activo"
+    if any(x in v for x in ["moderado", "media"]):
+        return "moderado"
+    if any(x in v for x in ["ligero", "leve", "poco"]):
+        return "ligero"
+
+    return "sedentario"  # default cuando dice "no hago ejercicio"
+
+
+def _normalizar_tipo_entrenamiento(valor: str) -> str:
+    """
+    Convierte el texto libre del agente al valor exacto del Enum TipoEntrenamiento.
+    """
+    if not valor:
+        return "ninguno"
+    v = valor.lower().strip()
+
+    if any(x in v for x in ["fuerza", "pesas", "musculaci", "resistencia"]):
+        return "fuerza"
+    if any(x in v for x in ["cardio", "correr", "aerobic"]):
+        return "cardio"
+    if any(x in v for x in ["mixto", "combinado", "funcional"]):
+        return "mixto"
+
+    return "ninguno"
+
+
 # ---------------------------------------------------------------------------
 # crear_usuario
 # ---------------------------------------------------------------------------
@@ -124,7 +211,10 @@ def guardar_perfil(db: Session, user_id: int, datos: dict) -> UserProfile:
         ),
 
         # ── Objetivos ───────────────────────────────────────────────────────
-        objetivo_principal=_to_enum(ObjetivoPrincipal, datos["objetivo_principal"]),
+        objetivo_principal=_to_enum(
+            ObjetivoPrincipal,
+            _normalizar_objetivo(datos["objetivo_principal"])
+        ),
         objetivo_secundario=datos.get("objetivo_secundario"),
         velocidad_objetivo=(
             _to_enum(VelocidadObjetivo, datos["velocidad_objetivo"])
@@ -133,12 +223,21 @@ def guardar_perfil(db: Session, user_id: int, datos: dict) -> UserProfile:
         ),
 
         # ── Actividad ───────────────────────────────────────────────────────
-        nivel_actividad=_to_enum(NivelActividad, datos["nivel_actividad"]),
-        dias_entrenamiento=int(datos["dias_entrenamiento"]),
-        tipo_entrenamiento=_to_enum(TipoEntrenamiento, datos["tipo_entrenamiento"]),
+        nivel_actividad=_to_enum(
+            NivelActividad,
+            _normalizar_actividad(datos.get("nivel_actividad", ""))
+        ),
+        dias_entrenamiento=int(datos.get("dias_entrenamiento") or 0),
+        tipo_entrenamiento=_to_enum(
+            TipoEntrenamiento,
+            _normalizar_tipo_entrenamiento(datos.get("tipo_entrenamiento", ""))
+        ),
 
         # ── Preferencias ────────────────────────────────────────────────────
-        dieta_tipo=_to_enum(DietaTipo, datos["dieta_tipo"]),
+        dieta_tipo=_to_enum(
+            DietaTipo,
+            _normalizar_dieta(datos.get("dieta_tipo", ""))
+        ),
         alergias=datos.get("alergias", []),
         intolerancias=datos.get("intolerancias", []),
         presupuesto_semanal=float(datos["presupuesto_semanal"]) if datos.get("presupuesto_semanal") else None,

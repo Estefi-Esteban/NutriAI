@@ -1,13 +1,12 @@
 import re
 import json
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 from typing import Optional
 from backend.database.models import UserProfile
-from backend.database.connection import session
-from backend.config import google_api_key
+from backend.config import groq_api_key
 from backend.agents.prompts.prompt_loader import load_prompt
 
 
@@ -32,10 +31,10 @@ SYSTEM_PROMPT = load_prompt("profile_prompt.md")
 class ProfileAgent:
 
     def __init__(self):
-        # Inicializamos el modelo Gemini
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
-            google_api_key=google_api_key,
+        # Inicializamos el modelo Groq
+        self.llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            api_key=groq_api_key,
             temperature=0.7,
         )
 
