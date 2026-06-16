@@ -136,27 +136,34 @@ def _normalizar_tipo_entrenamiento(valor: str) -> str:
 # crear_usuario
 # ---------------------------------------------------------------------------
 
-def crear_usuario(db: Session, nombre: str, email: str) -> User:
+def crear_usuario(
+    db: Session,
+    nombre: str,
+    email: str,
+    password_hash: str = None,
+    google_id: str = None,
+    auth_provider: str = "email"
+) -> User:
     """
     Crea un nuevo registro en la tabla 'users'.
 
     Parámetros:
-        db      — sesión SQLAlchemy activa
-        nombre  — nombre del usuario
-        email   — email único del usuario
+        db            — sesión SQLAlchemy activa
+        nombre        — nombre del usuario
+        email         — email único del usuario
+        password_hash — hash bcrypt de la contraseña (si es registro tradicional)
+        google_id     — ID único de Google (si es login con Google)
+        auth_provider — Proveedor de autenticación ('email' o 'google')
 
     Devuelve:
         El objeto User recién creado con su id asignado por la BD.
-
-    Nota:
-        password_hash se deja vacío ('') de momento porque la autenticación
-        completa se implementará en una fase posterior. Cuando se añada auth
-        real, este campo recibirá el hash bcrypt del password.
     """
     usuario = User(
         nombre=nombre,
         email=email,
-        password_hash="",   # placeholder hasta implementar auth
+        password_hash=password_hash,
+        google_id=google_id,
+        auth_provider=auth_provider
     )
     db.add(usuario)
     db.commit()

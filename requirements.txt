@@ -31,3 +31,7 @@ streamlit
 python-dotenv
 pydantic
 httpx
+python-jose[cryptography]
+passlib[bcrypt]
+google-auth
+email-validator
