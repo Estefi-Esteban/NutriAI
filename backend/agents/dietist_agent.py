@@ -21,6 +21,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from backend.config import groq_api_key 
 from backend.agents.prompts.prompt_loader import load_prompt
+from backend.rag.menu_validator import validar_y_corregir_dia
 
 
 logger = logging.getLogger(__name__)
@@ -122,7 +123,12 @@ class DietistAgent:
         )
 
         texto_respuesta = self._llamar_groq(mensaje_usuario, dia_semana)
-        return self._parsear_respuesta(texto_respuesta, dia_semana)
+        menu_dia = self._parsear_respuesta(texto_respuesta, dia_semana)
+
+        # Corrección RAG — reemplaza estimaciones del LLM con datos reales de ChromaDB
+        menu_dia_corregido = validar_y_corregir_dia(menu_dia)
+
+        return menu_dia_corregido
 
     # ------------------------------------------------------------------
     # Método de conveniencia — semana completa

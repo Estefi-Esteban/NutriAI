@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from backend.agents.profile_agent import ProfileAgent
+from backend.agents.followup_agent import FollowupAgent
 from backend.database.connection import SessionLocal
 from backend.database.models import User
 from backend.utils.security import verificar_token_acceso
@@ -115,4 +116,27 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme), db: Session 
         raise credentials_exception
 
     return usuario
+
+
+# ── Sesiones de Chat de Seguimiento Semanal (Fase 2.2) ───────────────────
+sesiones_seguimiento: dict[int, FollowupAgent] = {}
+
+
+def crear_sesion_seguimiento(user_id: int, perfil_data: dict, plan_data: dict) -> FollowupAgent:
+    """Crea una sesión de chat de seguimiento fresca."""
+    agente = FollowupAgent(perfil_data=perfil_data, plan_data=plan_data)
+    sesiones_seguimiento[user_id] = agente
+    return agente
+
+
+def obtener_sesion_seguimiento(user_id: int, perfil_data: dict, plan_data: dict) -> FollowupAgent:
+    """Recupera la sesión de seguimiento activa o crea una nueva si no existe."""
+    if user_id not in sesiones_seguimiento:
+        sesiones_seguimiento[user_id] = FollowupAgent(perfil_data=perfil_data, plan_data=plan_data)
+    return sesiones_seguimiento[user_id]
+
+
+def eliminar_sesion_seguimiento(user_id: int) -> None:
+    """Elimina la sesión de seguimiento activa."""
+    sesiones_seguimiento.pop(user_id, None)
 

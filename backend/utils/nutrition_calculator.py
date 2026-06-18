@@ -307,6 +307,47 @@ def calcular_macros(
 # Función principal — recibe el objeto UserProfile directamente
 # ---------------------------------------------------------------------------
 
+def _normalizar_objetivo(valor: str) -> str:
+    if not valor:
+        return "mantenimiento"
+    v = valor.lower().strip()
+
+    tiene_perder = any(x in v for x in ["perder", "adelgaz", "bajar", "reducir", "grasa", "definir", "definicion", "definición"])
+    tiene_musculo = any(x in v for x in ["ganar", "musculo", "músculo", "masa", "hipertrofia"])
+
+    if tiene_perder and tiene_musculo:
+        return "recomposicion_corporal"
+    if "recomposic" in v:
+        return "recomposicion_corporal"
+    if tiene_perder:
+        return "perder_grasa"
+    if tiene_musculo:
+        return "ganar_musculo"
+    if any(x in v for x in ["volumen", "bulk", "crecer", "voluminiz"]):
+        return "volumen"
+    if any(x in v for x in ["mantener", "mantenimiento", "salud"]):
+        return "mantenimiento"
+
+    return "mantenimiento"
+
+
+def _normalizar_actividad(valor: str) -> str:
+    if not valor:
+        return "sedentario"
+    v = valor.lower().strip()
+
+    if any(x in v for x in ["muy activo", "muy_activo", "intenso", "alta"]):
+        return "muy_activo"
+    if any(x in v for x in ["activo", "frecuente"]):
+        return "activo"
+    if any(x in v for x in ["moderado", "media"]):
+        return "moderado"
+    if any(x in v for x in ["ligero", "leve", "poco"]):
+        return "ligero"
+
+    return "sedentario"
+
+
 def calcular_todo(perfil) -> ResultadoNutricional:
     """
     Calcula el plan nutricional completo a partir del perfil del usuario.
@@ -339,8 +380,11 @@ def calcular_todo(perfil) -> ResultadoNutricional:
     sexo       = str(_get("sexo"))
 
     # nivel_actividad y objetivo_principal pueden ser Enum o string
-    nivel_act  = str(_get("nivel_actividad")).split(".")[-1]   # "NivelActividad.sedentario" → "sedentario"
-    objetivo   = str(_get("objetivo_principal")).split(".")[-1]
+    nivel_raw  = str(_get("nivel_actividad")).split(".")[-1]   # "NivelActividad.sedentario" → "sedentario"
+    objetivo_raw   = str(_get("objetivo_principal")).split(".")[-1]
+
+    nivel_act = _normalizar_actividad(nivel_raw)
+    objetivo = _normalizar_objetivo(objetivo_raw)
 
     # ── Cadena de cálculo ──────────────────────────────────────────────
     tmb       = calcular_tmb(peso_kg, altura_cm, edad, sexo)
