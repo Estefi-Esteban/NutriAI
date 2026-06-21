@@ -117,6 +117,7 @@ sin ningún texto adicional antes ni después del bloque JSON:
     "porcentaje_grasa": null,
     "objetivo_principal": "",
     "objetivo_secundario": "",
+    "nivel_actividad": "",
     "dias_entrenamiento": 0,
     "tipo_entrenamiento": "",
     "minutos_sesion": 0,
@@ -143,6 +144,7 @@ Los siguientes campos SIEMPRE deben estar rellenos antes de devolver el JSON:
   * peso_kg
   * altura_cm
   * objetivo_principal
+  * nivel_actividad (debe ser exactamente uno de: "sedentario", "ligero", "moderado", "activo", "muy_activo")
   * dias_entrenamiento
   * tipo_entrenamiento
   * dieta_tipo

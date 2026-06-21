@@ -1,8 +1,9 @@
-import sys
-import io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-
 import json
+
+# Fix Unicode/emoji output on Windows terminals
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
 from backend.agents.profile_agent import ProfileAgent
 from backend.database.connection import SessionLocal
 from backend.database.repositories.user_repository import (
@@ -25,7 +26,7 @@ def guardar_en_supabase(datos: dict) -> None:
         usuario = crear_usuario(
             db=db,
             nombre=datos["nombre"],
-email=f"{datos['nombre'].lower().replace(' ', '_')}_{datetime.now().strftime('%H%M%S')}@nutriai.local"
+            email=f"{datos['nombre'].lower().replace(' ', '_')}_{datetime.now().strftime('%H%M%S')}@nutriai.local"
         )
         print(f"✅ Usuario creado — ID: {usuario.id}")
 

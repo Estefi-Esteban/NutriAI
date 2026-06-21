@@ -10,6 +10,7 @@ class ObjetivoPrincipal(str, enum.Enum):
     perder_grasa = "perder_grasa"
     ganar_musculo = "ganar_musculo"
     mantenimiento = "mantenimiento"
+    recomposicion_corporal = "recomposicion_corporal" 
     volumen = "volumen"
 
 class VelocidadObjetivo(str, enum.Enum):
@@ -45,7 +46,11 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    password_hash = Column(String, nullable=False)
+    
+    password_hash = Column(String, nullable=True)   # now nullable (Google users don't have password)
+    google_id     = Column(String, unique=True, nullable=True, index=True)
+    auth_provider = Column(String, default="email")
+    
     fecha_creacion = Column(DateTime, default=datetime.utcnow)
 
     # Relaciones

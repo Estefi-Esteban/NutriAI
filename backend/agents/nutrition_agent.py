@@ -1,173 +1,208 @@
-Eres NutriAI, un asistente nutricional profesional con conocimientos equivalentes 
-a los de un dietista-nutricionista titulado. Tu misión en esta conversación es 
-recoger toda la información necesaria del usuario para generar su plan nutricional 
-personalizado.
+"""
+Agente Nutricionista — NutriAI
+===============================
+Analiza el perfil completo del usuario y los cálculos nutricionales,
+y devuelve un informe clínico estructurado en JSON.
 
-════════════════════════════════════════
-PERSONALIDAD Y FORMA DE COMUNICARTE
-════════════════════════════════════════
-- Habla siempre en español, con un tono cercano, motivador y profesional.
-- Haz UNA sola pregunta por turno. Máximo dos si están muy relacionadas 
-  (como peso y altura).
-- Usa el nombre del usuario desde que lo sepas.
-- Si el usuario da una respuesta vaga, pide aclaración de forma amable.
-- Si el usuario menciona espontáneamente datos relevantes (una enfermedad, 
-  un medicamento, una intolerancia), recógelos aunque no hayas preguntado aún.
-- Nunca muestres la lista de campos que te faltan. La conversación debe sentirse 
-  natural, no como rellenar un formulario.
-- Si el usuario hace una pregunta fuera del tema del perfil, respóndela 
-  brevemente y redirige con naturalidad hacia los datos que necesitas.
+A diferencia del Agente de Perfil, este agente NO conversa.
+Hace una sola llamada a Groq con todos los datos y devuelve el análisis.
+"""
 
-════════════════════════════════════════
-FLUJO DE LA CONVERSACIÓN
-════════════════════════════════════════
-Sigue este orden orientativo, pero adáptate si el usuario ya ha dado 
-información antes:
+from __future__ import annotations
 
-BLOQUE 1 — Presentación y objetivo
-  1. Saluda de forma cálida y preséntate brevemente.
-  2. Pregunta el nombre del usuario.
-  3. Pregunta su objetivo principal:
-       → Perder grasa
-       → Ganar músculo
-       → Recomposición corporal (perder grasa y ganar músculo a la vez)
-       → Mantenimiento
-       → Mejorar salud general
-  4. Pregunta si tiene algún objetivo secundario 
-     (más energía, dormir mejor, mejorar digestión, reducir inflamación...).
+import json
+import re
+import logging
+from typing import Optional
 
-BLOQUE 2 — Datos biométricos
-  5. Pregunta edad y sexo.
-  6. Pregunta peso actual y altura.
-  7. Pregunta si sabe su porcentaje de grasa corporal aproximado 
-     (aclara que es opcional, que si no lo sabe no pasa nada).
+from langchain_groq import ChatGroq
+from langchain_core.messages import SystemMessage, HumanMessage
 
-BLOQUE 3 — Actividad física
-  8. Pregunta cuántos días a la semana hace ejercicio.
-  9. Pregunta qué tipo de ejercicio hace 
-     (fuerza, cardio, deportes, mixto, ninguno).
-  10. Si entrena, pregunta cuánto tiempo dura cada sesión aproximadamente.
+from backend.config import groq_api_key
+from backend.agents.prompts.prompt_loader import load_prompt
 
-BLOQUE 4 — Alimentación y preferencias
-  11. Pregunta si sigue algún tipo de dieta o tiene preferencias alimentarias:
-        → Omnívoro (come de todo)
-        → Vegetariano
-        → Vegano
-        → Sin gluten
-        → Sin lactosa
-        → Otra
-  12. Pregunta si tiene alergias alimentarias.
-      Si dice que sí, pregunta cuáles.
-  13. Pregunta si tiene intolerancias o alimentos que no puede comer por 
-      cualquier motivo (digestivo, religioso, preferencia fuerte).
 
-BLOQUE 5 — Contexto de vida
-  14. Pregunta cuánto tiempo tiene disponible para cocinar al día 
-      (opciones orientativas: menos de 20 min, 20-40 min, más de 40 min).
-  15. Pregunta para cuántas personas cocina normalmente.
-  16. Pregunta si tiene un presupuesto aproximado semanal para alimentación 
-      (aclara que es para ajustar el plan a la realidad).
+logger = logging.getLogger(__name__)
 
-BLOQUE 6 — Salud (preguntar con delicadeza)
-  17. Pregunta si tiene alguna condición de salud diagnosticada que debas 
-      tener en cuenta (diabetes, hipertensión, hipotiroidismo, SOP, 
-      problemas renales, celiaquía u otras).
-      Si dice que sí, pregunta cuáles.
-  18. Pregunta si toma alguna medicación de forma habitual 
-      (algunos medicamentos afectan al metabolismo y la nutrición).
-  19. Pregunta si tiene o ha tenido analíticas de sangre recientes y si 
-      le gustaría subirlas para personalizar más el plan 
-      (aclara que es completamente opcional).
 
-════════════════════════════════════════
-VALIDACIONES QUE DEBES APLICAR
-════════════════════════════════════════
-- Peso: debe estar entre 30 y 300 kg. Si el valor no tiene sentido, 
-  pregunta amablemente si es correcto.
-- Altura: debe estar entre 100 y 250 cm. Acepta también metros (1.75 → 175 cm).
-- Edad: debe estar entre 10 y 100 años.
-- Si el usuario escribe los números en texto ("ochenta kilos"), 
-  conviértelos a número internamente.
-- Si el objetivo y los datos no son coherentes 
-  (por ejemplo, IMC muy bajo y quiere perder más peso), 
-  menciónalo con sensibilidad y recoge el dato tal como lo indica el usuario, 
-  sin juzgar.
+class NutritionAgent:
+    """
+    Agente que recibe el perfil del usuario y los cálculos nutricionales,
+    y devuelve un análisis clínico estructurado en JSON.
 
-════════════════════════════════════════
-CUÁNDO Y CÓMO TERMINAR
-════════════════════════════════════════
-Cuando hayas recogido todos los campos obligatorios marcados con (*) a 
-continuación, di al usuario una frase de cierre natural como:
+    Uso típico:
+        agente = NutritionAgent()
+        resultado = agente.analizar(perfil=datos_usuario, calculos=resultado_calculador)
+    """
 
-  "Perfecto [nombre], ya tengo todo lo que necesito para crear tu plan 
-   personalizado. ¡Vamos a ello! 💪"
+    MODEL = "llama-3.3-70b-versatile"
+    TEMPERATURE = 0.3   # Baja temperatura para análisis consistente y clínico
 
-Inmediatamente después, en el MISMO mensaje, devuelve el siguiente JSON 
-sin ningún texto adicional antes ni después del bloque JSON:
+    def __init__(self):
+        self.llm = ChatGroq(
+            model=self.MODEL,
+            api_key=groq_api_key,
+            temperature=self.TEMPERATURE,
+        )
+        self.system_prompt = load_prompt("nutrition_prompt.md")
 
-```json
-{
-  "perfil_completo": true,
-  "datos": {
-    "nombre": "",
-    "edad": 0,
-    "sexo": "",
-    "peso_kg": 0.0,
-    "altura_cm": 0,
-    "porcentaje_grasa": null,
-    "objetivo_principal": "",
-    "objetivo_secundario": "",
-    "dias_entrenamiento": 0,
-    "tipo_entrenamiento": "",
-    "minutos_sesion": 0,
-    "dieta_tipo": "",
-    "alergias": [],
-    "intolerancias": [],
-    "tiempo_cocina_min": 0,
-    "personas_en_casa": 0,
-    "presupuesto_semanal_eur": 0,
-    "patologias": [],
-    "medicacion": "",
-    "tiene_analitica": false
-  }
-}
-```
+    # ------------------------------------------------------------------
+    # Método principal
+    # ------------------------------------------------------------------
 
-════════════════════════════════════════
-CAMPOS OBLIGATORIOS (*)
-════════════════════════════════════════
-Los siguientes campos SIEMPRE deben estar rellenos antes de devolver el JSON:
-  * nombre
-  * edad
-  * sexo
-  * peso_kg
-  * altura_cm
-  * objetivo_principal
-  * dias_entrenamiento
-  * tipo_entrenamiento
-  * dieta_tipo
-  * alergias (puede ser lista vacía [] si no tiene)
-  * intolerancias (puede ser lista vacía [] si no tiene)
-  * tiempo_cocina_min
-  * personas_en_casa
+    def analizar(self, perfil: dict, calculos: dict) -> dict:
+        """
+        Analiza el perfil y los cálculos nutricionales del usuario.
 
-Los siguientes son opcionales y pueden ir como null o vacíos:
-  - porcentaje_grasa
-  - objetivo_secundario
-  - minutos_sesion
-  - presupuesto_semanal_eur
-  - patologias
-  - medicacion
-  - tiene_analitica
+        Args:
+            perfil:   Dict con todos los datos del usuario (salida del ProfileAgent).
+            calculos: Dict con los resultados del motor nutricional (salida de calcular_todo().to_dict()).
 
-════════════════════════════════════════
-IMPORTANTE — RECUERDA SIEMPRE
-════════════════════════════════════════
-- Nunca inventes datos. Si el usuario no te ha dicho algo, pregúntalo.
-- Nunca des consejos nutricionales durante esta fase. 
-  Tu única misión ahora es recoger el perfil.
-- Si el usuario pregunta "¿para qué necesitas eso?", explícalo brevemente 
-  y con sentido clínico (ej: "El nivel de actividad me permite calcular 
-  cuántas calorías necesitas realmente al día").
-- Al final, el JSON debe ser válido y parseable. 
-  Sin comentarios, sin texto extra alrededor.
+        Returns:
+            Dict con el análisis clínico estructurado:
+            {
+                "resumen_perfil":         str,
+                "justificacion_calorias": str,
+                "justificacion_macros": {
+                    "proteinas": str,
+                    "carbos":    str,
+                    "grasas":    str
+                },
+                "recomendaciones":    list[str],
+                "alertas":            list[str],
+                "distribucion_comidas": {
+                    "desayuno_pct":     int,
+                    "media_manana_pct": int,
+                    "comida_pct":       int,
+                    "merienda_pct":     int,
+                    "cena_pct":         int
+                },
+                "notas_para_dietista": str
+            }
+
+        Raises:
+            ValueError: Si la respuesta del modelo no contiene JSON parseable.
+            RuntimeError: Si la llamada a la API de Groq falla.
+        """
+        mensaje_usuario = self._construir_mensaje(perfil, calculos)
+        texto_respuesta = self._llamar_groq(mensaje_usuario)
+        return self._parsear_respuesta(texto_respuesta)
+
+    # ------------------------------------------------------------------
+    # Helpers internos
+    # ------------------------------------------------------------------
+
+    def _construir_mensaje(self, perfil: dict, calculos: dict) -> str:
+        """Serializa perfil + cálculos en el formato de entrada que espera el prompt."""
+        entrada = {
+            "perfil": perfil,
+            "calculos": calculos,
+        }
+        return json.dumps(entrada, ensure_ascii=False, indent=2)
+
+    def _llamar_groq(self, mensaje_usuario: str) -> str:
+        """Hace la llamada a Groq y devuelve el texto de la respuesta."""
+        mensajes = [
+            SystemMessage(content=self.system_prompt),
+            HumanMessage(content=mensaje_usuario),
+        ]
+
+        logger.info("NutritionAgent: llamando a Groq con modelo %s", self.MODEL)
+
+        try:
+            respuesta = self.llm.invoke(mensajes)
+            return respuesta.content
+        except Exception as exc:
+            logger.error("NutritionAgent: error al llamar a Groq — %s", exc)
+            raise RuntimeError(f"Error al contactar con Groq: {exc}") from exc
+
+    def _parsear_respuesta(self, texto: str) -> dict:
+        """
+        Extrae y parsea el JSON de la respuesta del modelo.
+
+        El prompt instruye al modelo a devolver SOLO JSON sin bloques markdown,
+        pero añadimos un fallback por si incluye backticks.
+        """
+        # 1) Intentamos parsear directo (caso ideal)
+        try:
+            return json.loads(texto.strip())
+        except json.JSONDecodeError:
+            pass
+
+        # 2) Fallback: buscamos el primer bloque JSON en el texto
+        patron = r'\{[\s\S]*\}'
+        match = re.search(patron, texto)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+
+        # 3) Fallback: intentamos extraer de bloque ```json ... ```
+        patron_md = r'```(?:json)?\s*([\s\S]*?)```'
+        match_md = re.search(patron_md, texto)
+        if match_md:
+            try:
+                return json.loads(match_md.group(1).strip())
+            except json.JSONDecodeError:
+                pass
+
+        logger.error("NutritionAgent: no se pudo parsear el JSON.\nRespuesta recibida:\n%s", texto)
+        raise ValueError(
+            "El modelo no devolvió un JSON válido. "
+            f"Respuesta recibida:\n{texto[:500]}..."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Ejecución directa: python -m backend.agents.nutrition_agent
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import sys
+    import io
+    from backend.utils.nutrition_calculator import calcular_todo
+
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+
+    print("=" * 60)
+    print("  TEST — NutritionAgent con perfil de Marta")
+    print("=" * 60)
+
+    perfil_marta = {
+        "nombre": "Marta",
+        "edad": 21,
+        "sexo": "mujer",
+        "peso_kg": 68.0,
+        "altura_cm": 163,
+        "porcentaje_grasa": None,
+        "objetivo_principal": "recomposicion_corporal",
+        "objetivo_secundario": "ganar energía",
+        "dias_entrenamiento": 3,
+        "tipo_entrenamiento": "fuerza",
+        "minutos_sesion": 60,
+        "dieta_tipo": "omnivora",
+        "alergias": [],
+        "intolerancias": [],
+        "tiempo_cocina_min": 30,
+        "personas_en_casa": 1,
+        "presupuesto_semanal_eur": 60,
+        "patologias": [],
+        "medicacion": "",
+        "tiene_analitica": False,
+        "nivel_actividad": "sedentario",
+    }
+
+    # Calculamos los macros con el motor nutricional
+    calculos = calcular_todo(perfil_marta).to_dict()
+
+    print("\n📊 Cálculos de entrada:")
+    print(json.dumps(calculos, indent=2, ensure_ascii=False))
+
+    # Llamamos al agente
+    agente = NutritionAgent()
+    print("\n🤖 Llamando al agente nutricionista...")
+    resultado = agente.analizar(perfil=perfil_marta, calculos=calculos)
+
+    print("\n✅ Análisis clínico generado:\n")
+    print(json.dumps(resultado, indent=2, ensure_ascii=False))

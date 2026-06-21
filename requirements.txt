@@ -2,7 +2,9 @@
 google-generativeai
 langchain-google-genai
 langchain
+langchain-community
 langgraph
+langchain-groq
 
 # API
 fastapi
@@ -29,3 +31,7 @@ streamlit
 python-dotenv
 pydantic
 httpx
+python-jose[cryptography]
+passlib[bcrypt]
+google-auth
+email-validator
