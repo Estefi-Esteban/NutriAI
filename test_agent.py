@@ -1,5 +1,3 @@
-import sys
-import io
 import json
 
 # Fix Unicode/emoji output on Windows terminals

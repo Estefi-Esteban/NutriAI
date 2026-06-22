@@ -6,9 +6,9 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 from typing import Optional
 from backend.database.models import UserProfile
-from backend.config import groq_api_key
+from backend.database.connection import SessionLocal
+from backend.config import google_api_key
 from backend.agents.prompts.prompt_loader import load_prompt
-from backend.utils.decorators import reintentar_llamada_llm
 
 
 """
