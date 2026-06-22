@@ -1,7 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.routers import chat, planes, lista_compra, usuarios, auth, seguimiento
+from backend.utils.logging_config import configurar_logging
+from backend.api.error_handlers import registrar_manejadores_error
+from backend.api.routers import chat, planes, lista_compra, usuarios, auth, seguimiento, clinical, pathology, vision, supplements, assistant
+
+
+# Configurar logging ANTES de crear la app
+configurar_logging()
 
 app = FastAPI(
     title="NutriAI API",
@@ -17,12 +23,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+registrar_manejadores_error(app)
+
 app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(planes.router)
 app.include_router(lista_compra.router)
 app.include_router(usuarios.router)
 app.include_router(seguimiento.router)
+app.include_router(clinical.router)
+app.include_router(pathology.router)
+app.include_router(vision.router)
+app.include_router(supplements.router)
+app.include_router(assistant.router)
+
 
 @app.get("/")
 def root():

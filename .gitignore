@@ -5,3 +5,4 @@ __pycache__/
 .DS_Store
 data/vector_db/
 data/food_db/*.csv
+logs/

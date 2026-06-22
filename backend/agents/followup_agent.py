@@ -5,6 +5,7 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.messages import SystemMessage, HumanMessage
 from backend.config import groq_api_key
 from backend.agents.prompts.prompt_loader import load_prompt
+from backend.utils.decorators import reintentar_llamada_llm
 
 class FollowupAgent:
     def __init__(self, perfil_data: dict, plan_data: dict):
@@ -46,6 +47,12 @@ class FollowupAgent:
                 return None
         return None
 
+    @reintentar_llamada_llm(max_intentos=3, retardo_inicial=15.0, backoff=1.5)
+    def _llamar_groq(self, mensajes: list) -> str:
+        """Invoca el LLM de Groq con reintentos en caso de error."""
+        respuesta = self.llm.invoke(mensajes)
+        return respuesta.content
+
     def chat(self, mensaje_usuario: str) -> dict:
         """
         Procesa el mensaje del usuario.
@@ -62,9 +69,8 @@ class FollowupAgent:
             
         mensajes.append(HumanMessage(content=mensaje_usuario))
         
-        # Invocar LLM
-        respuesta_llm = self.llm.invoke(mensajes)
-        texto_respuesta = respuesta_llm.content
+        # Invocar LLM con reintentos
+        texto_respuesta = self._llamar_groq(mensajes)
         
         # Guardar en memoria de conversación
         self.memory.add_user_message(mensaje_usuario)

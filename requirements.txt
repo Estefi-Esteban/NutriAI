@@ -35,3 +35,9 @@ python-jose[cryptography]
 passlib[bcrypt]
 google-auth
 email-validator
+
+
+# Testeo 
+pytest 
+pytest-asyncio
+

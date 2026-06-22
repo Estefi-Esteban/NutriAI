@@ -117,3 +117,63 @@ class NutritionPlan(Base):
 
     # Relaciones
     usuario = relationship("User", back_populates="planes_nutricionales")
+
+
+class ProtocoloNutricional(Base):
+    __tablename__ = "protocolos_nutricionales"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+
+    # Patologías detectadas/declaradas (lista JSON)
+    patologias_activas = Column(JSON, default=list)
+
+    # El protocolo generado — restricciones y prioridades
+    restricciones = Column(JSON, default=list)
+    # Ej: ["sin_gluten", "bajo_sodio", "bajo_indice_glucemico"]
+
+    alimentos_prohibidos = Column(JSON, default=list)
+    # Ej: ["trigo", "cebada", "centeno"]
+
+    alimentos_prioritarios = Column(JSON, default=list)
+    # Ej: ["hierro hem", "omega-3", "selenio"]
+
+    notas_dietista = Column(Text, nullable=True)
+    # Instrucciones en texto libre para el prompt del Dietista
+
+    fecha_generacion = Column(DateTime, default=datetime.utcnow)
+
+    usuario = relationship("User")
+
+
+class RecomendacionSuplementos(Base):
+    __tablename__ = "recomendaciones_suplementos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+
+    # Suplementos clasificados en tres categorías (listas de dicts JSON)
+    suplementos_necesarios = Column(JSON, default=list)
+    suplementos_opcionales = Column(JSON, default=list)
+    suplementos_innecesarios = Column(JSON, default=list)
+
+    notas = Column(Text, nullable=True)
+    resumen = Column(Text, nullable=True)
+
+    fecha_generacion = Column(DateTime, default=datetime.utcnow)
+
+    usuario = relationship("User")
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    rol = Column(String, nullable=False)       # "user" o "assistant"
+    contenido = Column(Text, nullable=False)
+    fecha = Column(DateTime, default=datetime.utcnow)
+
+    usuario = relationship("User")
+
+

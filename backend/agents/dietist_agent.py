@@ -22,6 +22,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from backend.config import groq_api_key 
 from backend.agents.prompts.prompt_loader import load_prompt
 from backend.rag.menu_validator import validar_y_corregir_dia
+from backend.utils.decorators import reintentar_llamada_llm
 
 
 logger = logging.getLogger(__name__)
@@ -209,6 +210,7 @@ class DietistAgent:
         }
         return json.dumps(entrada, ensure_ascii=False, indent=2)
 
+    @reintentar_llamada_llm(max_intentos=3, retardo_inicial=15.0, backoff=1.5)
     def _llamar_groq(self, mensaje_usuario: str, dia_semana: str) -> str:
         """Hace la llamada a Groq y devuelve el texto de la respuesta."""
         mensajes = [
@@ -221,12 +223,8 @@ class DietistAgent:
             self.MODEL, dia_semana
         )
 
-        try:
-            respuesta = self.llm.invoke(mensajes)
-            return respuesta.content
-        except Exception as exc:
-            logger.error("DietistAgent: error al llamar a Groq — %s", exc)
-            raise RuntimeError(f"Error al contactar con Groq: {exc}") from exc
+        respuesta = self.llm.invoke(mensajes)
+        return respuesta.content
 
     def _parsear_respuesta(self, texto: str, dia_semana: str) -> dict:
         """

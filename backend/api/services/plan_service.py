@@ -18,6 +18,7 @@ from backend.database.repositories.user_repository import crear_usuario, guardar
 from backend.database.repositories.plan_repository import guardar_plan
 from backend.database.models import User
 from backend.api.dependencies import actualizar_tarea_plan
+from backend.database.repositories.protocol_repository import obtener_protocolo
 
 PAUSA_ENTRE_DIAS_SEG = 15
 
@@ -32,6 +33,24 @@ def generar_plan_background(tarea_id: str, perfil: dict, user_id: int) -> None:
     """
     try:
         actualizar_tarea_plan(tarea_id, estado="generando", progreso=5)
+
+        # Cargar protocolo de patologías si existe
+        with SessionLocal() as db:
+            protocolo = obtener_protocolo(db, user_id=user_id)
+
+        if protocolo and (protocolo.notas_dietista or protocolo.restricciones or protocolo.alimentos_prohibidos or protocolo.alimentos_prioritarios):
+            # Inyectamos las restricciones en el perfil que reciben los agentes
+            perfil = {
+                **perfil,
+                "restricciones_clinicas": protocolo.notas_dietista or "",
+                "alimentos_prohibidos": protocolo.alimentos_prohibidos or [],
+                "alimentos_prioritarios": protocolo.alimentos_prioritarios or [],
+            }
+            actualizar_tarea_plan(
+                tarea_id,
+                progreso=8,
+                dia_actual="Cargando protocolo clínico..."
+            )
 
         # PASO 1 — Cálculos
         calculos = calcular_todo(perfil).to_dict()

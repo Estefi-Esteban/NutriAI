@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 
 from backend.api.schemas.chat_schema import (
     IniciarChatResponse,

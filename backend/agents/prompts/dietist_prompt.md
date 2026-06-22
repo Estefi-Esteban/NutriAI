@@ -236,6 +236,14 @@ CRITERIOS DE CALIDAD
   - Evita: salmón fresco, mariscos, carnes premium, superalimentos caros (açaí, etc.).
 
 ════════════════════════════════════════
+PROTOCOLO CLÍNICO ACTIVO (si viene en el perfil)
+════════════════════════════════════════
+Si el perfil incluye "restricciones_clinicas", "alimentos_prohibidos"
+o "alimentos_prioritarios", DEBES respetarlos OBLIGATORIAMENTE.
+Son restricciones médicas, no preferencias. Tienen prioridad sobre
+cualquier otra consideración culinaria o de variedad.
+
+════════════════════════════════════════
 IMPORTANTE — RECUERDA SIEMPRE
 ════════════════════════════════════════
 - Devuelve SOLO el JSON. Sin introducción, sin conclusión, sin backticks.

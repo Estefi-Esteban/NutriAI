@@ -8,6 +8,7 @@ from typing import Optional
 from backend.database.models import UserProfile
 from backend.config import groq_api_key
 from backend.agents.prompts.prompt_loader import load_prompt
+from backend.utils.decorators import reintentar_llamada_llm
 
 
 """
@@ -80,6 +81,12 @@ class ProfileAgent:
 
         return mensajes
 
+    @reintentar_llamada_llm(max_intentos=3, retardo_inicial=15.0, backoff=1.5)
+    def _llamar_groq(self, mensajes: list) -> str:
+        """Invoca el LLM de Groq con reintentos en caso de error."""
+        respuesta = self.llm.invoke(mensajes)
+        return respuesta.content
+
     def chat(self, mensaje_usuario: str) -> dict:
         """
         Método principal. Recibe el mensaje del usuario y devuelve
@@ -102,9 +109,8 @@ class ProfileAgent:
         # Construimos los mensajes con el historial
         mensajes = self._construir_mensajes(mensaje_usuario)
 
-        # Llamamos a Gemini
-        respuesta_llm = self.llm.invoke(mensajes)
-        texto_respuesta = respuesta_llm.content
+        # Llamamos a Groq con reintentos
+        texto_respuesta = self._llamar_groq(mensajes)
 
         # Guardamos en memoria
         self.memory.add_user_message(mensaje_usuario)

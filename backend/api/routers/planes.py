@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 
 from backend.api.schemas.plan_schema import (
     GenerarPlanRequest,
@@ -11,6 +11,7 @@ from backend.api.services.plan_service import generar_plan_background
 from backend.database.connection import SessionLocal
 from backend.database.repositories.plan_repository import obtener_plan_activo
 from backend.database.models import User
+from backend.utils.exceptions import RecursoNoEncontradoError
 
 router = APIRouter(prefix="/planes", tags=["Planes"])
 
@@ -47,7 +48,7 @@ def estado_tarea(tarea_id: str):
     """
     tarea = obtener_tarea_plan(tarea_id)
     if tarea is None:
-        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+        raise RecursoNoEncontradoError(f"Tarea '{tarea_id}' no encontrada")
 
     return EstadoTareaResponse(**tarea)
 
@@ -58,7 +59,7 @@ def plan_activo(current_user: User = Depends(get_current_user)):
     with SessionLocal() as db:
         plan = obtener_plan_activo(db, user_id=current_user.id)
         if plan is None:
-            raise HTTPException(status_code=404, detail="No hay plan activo para este usuario")
+            raise RecursoNoEncontradoError("No hay plan activo para este usuario")
 
         return PlanCompletoResponse(
             plan_id=plan.id,

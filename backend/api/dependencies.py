@@ -9,6 +9,7 @@ from backend.agents.followup_agent import FollowupAgent
 from backend.database.connection import SessionLocal
 from backend.database.models import User
 from backend.utils.security import verificar_token_acceso
+from backend.utils.exceptions import SesionNoEncontradaError
 
 # Diccionario en memoria — vive mientras el servidor esté corriendo.
 # Clave: user_id (int) → Valor: instancia de ProfileAgent
@@ -30,13 +31,14 @@ def obtener_sesion_chat(user_id: int) -> ProfileAgent:
     Recupera el agente asociado a un user_id.
     """
     if user_id not in sesiones_chat:
-        sesiones_chat[user_id] = ProfileAgent()
+        raise SesionNoEncontradaError(f"Sesión de chat para el usuario '{user_id}' no encontrada o expirada. Por favor, inicie la sesión primero.")
     return sesiones_chat[user_id]
 
 
 def eliminar_sesion_chat(user_id: int) -> None:
     """Limpia una sesión terminada para no acumular memoria indefinidamente."""
     sesiones_chat.pop(user_id, None)
+
 
 
 # ── Tareas de generación de plan (NUEVO) ─────────────────────────────────
@@ -130,9 +132,9 @@ def crear_sesion_seguimiento(user_id: int, perfil_data: dict, plan_data: dict) -
 
 
 def obtener_sesion_seguimiento(user_id: int, perfil_data: dict, plan_data: dict) -> FollowupAgent:
-    """Recupera la sesión de seguimiento activa o crea una nueva si no existe."""
+    """Recupera la sesión de seguimiento activa."""
     if user_id not in sesiones_seguimiento:
-        sesiones_seguimiento[user_id] = FollowupAgent(perfil_data=perfil_data, plan_data=plan_data)
+        raise SesionNoEncontradaError(f"Sesión de seguimiento para el usuario '{user_id}' no encontrada o expirada. Por favor, inicie la sesión de seguimiento primero.")
     return sesiones_seguimiento[user_id]
 
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -16,6 +16,7 @@ from backend.database.connection import SessionLocal
 from backend.database.models import User
 from backend.database.repositories.user_repository import obtener_perfil, guardar_perfil
 from backend.database.repositories.plan_repository import obtener_plan_activo
+from backend.utils.exceptions import RecursoNoEncontradoError
 
 router = APIRouter(prefix="/chat/seguimiento", tags=["Seguimiento Semanal"])
 
@@ -24,16 +25,14 @@ def _obtener_contexto_usuario(db: Session, user: User) -> tuple[dict, dict]:
     """Recupera y formatea el perfil y el plan activo del usuario en formato dict."""
     perfil = obtener_perfil(db, user_id=user.id)
     if perfil is None:
-        raise HTTPException(
-            status_code=404,
-            detail="No tienes un perfil creado todavía. Completa el chat de perfil primero."
+        raise RecursoNoEncontradoError(
+            "No tienes un perfil creado todavía. Completa el chat de perfil primero."
         )
 
     plan = obtener_plan_activo(db, user_id=user.id)
     if plan is None:
-        raise HTTPException(
-            status_code=404,
-            detail="No tienes un plan activo generado. Genera uno primero."
+        raise RecursoNoEncontradoError(
+            "No tienes un plan activo generado. Genera uno primero."
         )
 
     perfil_data = {

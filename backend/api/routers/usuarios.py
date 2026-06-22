@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 
 from backend.api.schemas.usuario_schema import UsuarioResponse, PerfilResponse
 from backend.api.dependencies import get_current_user
 from backend.database.connection import SessionLocal
 from backend.database.models import User
 from backend.database.repositories.user_repository import obtener_perfil
+from backend.utils.exceptions import RecursoNoEncontradoError
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
@@ -26,7 +27,7 @@ def obtener_perfil_usuario(current_user: User = Depends(get_current_user)):
     with SessionLocal() as db:
         perfil = obtener_perfil(db, user_id=current_user.id)
         if perfil is None:
-            raise HTTPException(status_code=404, detail="Este usuario no tiene perfil guardado")
+            raise RecursoNoEncontradoError("Este usuario no tiene perfil guardado")
 
         return PerfilResponse(
             user_id=perfil.user_id,
