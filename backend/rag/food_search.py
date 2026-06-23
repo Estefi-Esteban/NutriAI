@@ -47,12 +47,18 @@ def _crear_coleccion():
 def _obtener_coleccion():
     """
     Devuelve la colección ChromaDB, inicializándola si es la primera vez.
-    Expone también el cliente para poder resetearlo ante errores.
+    Devuelve None si ChromaDB no está disponible (modo producción sin vector_db).
     """
     global _cliente, _coleccion
 
     if _coleccion is None:
-        _cliente, _coleccion = _crear_coleccion()
+        try:
+            _cliente, _coleccion = _crear_coleccion()
+        except Exception as e:
+            logger.warning(
+                "ChromaDB no disponible: %s — RAG desactivado (modo producción)", e
+            )
+            return None
 
     return _coleccion
 
@@ -91,6 +97,8 @@ def buscar_alimento(query: str, n_resultados: int = 3) -> list[dict]:
         }
     """
     coleccion = _obtener_coleccion()
+    if coleccion is None:
+        return []  # RAG desactivado — ChromaDB no disponible en este entorno
 
     for intento in range(2):  # intento 0: normal; intento 1: tras reconexión
         try:
@@ -142,7 +150,11 @@ def buscar_mejor_match(query: str) -> Optional[dict]:
     """
     Devuelve solo el alimento más parecido (el primer resultado).
     Conveniencia para cuando no necesitas comparar varias opciones.
+    Devuelve None si ChromaDB no está disponible.
     """
+    coleccion = _obtener_coleccion()
+    if coleccion is None:
+        return None  # RAG desactivado
     resultados = buscar_alimento(query, n_resultados=1)
     return resultados[0] if resultados else None
 
