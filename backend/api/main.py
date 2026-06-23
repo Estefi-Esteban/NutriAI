@@ -41,3 +41,8 @@ app.include_router(assistant.router)
 @app.get("/")
 def root():
     return {"status": "ok", "mensaje": "NutriAI API funcionando 🥗"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

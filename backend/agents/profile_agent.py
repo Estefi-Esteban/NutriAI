@@ -7,7 +7,8 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from backend.database.models import UserProfile
 from backend.database.connection import SessionLocal
-from backend.config import google_api_key
+from backend.config import groq_api_key
+from backend.utils.decorators import reintentar_llamada_llm
 from backend.agents.prompts.prompt_loader import load_prompt
 
 
