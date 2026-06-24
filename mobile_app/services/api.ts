@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URL configuration
 // Note: Use 'http://10.0.2.2:8000' for Android Emulator, or your local machine IP for physical devices.
-const BASE_URL = 'https://unsealed-undecided-refinance.ngrok-free.dev';
+const BASE_URL = 'https://nutriai-backend.up.railway.app';
 
 export interface UserInfo {
   id: number;

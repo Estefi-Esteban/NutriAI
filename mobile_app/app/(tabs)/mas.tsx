@@ -1,76 +1,123 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  StyleSheet, Text, View, ScrollView,
+  TouchableOpacity
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
-import { GlassCard } from '../../components/GlassCard';
+import { Spacing, Radius } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+
+interface MenuItem {
+  label: string;
+  sub: string;
+  icon: string;
+  color: string;
+  route: '/clinical' | '/patologia' | '/suplementos';
+}
+
+const MENU_ITEMS: MenuItem[] = [
+  {
+    label: 'Analítica Clínica',
+    sub: 'Sube tus análisis de sangre para adaptar tu dieta.',
+    icon: 'pulse',
+    color: '#A78BFA',
+    route: '/clinical',
+  },
+  {
+    label: 'Patologías e Intolerancias',
+    sub: 'Configura restricciones clínicas y alergias activas.',
+    icon: 'medical',
+    color: Colors.macroProtein,
+    route: '/patologia',
+  },
+  {
+    label: 'Suplementación',
+    sub: 'Descubre tus recomendaciones personalizadas.',
+    icon: 'leaf',
+    color: Colors.primary,
+    route: '/suplementos',
+  },
+];
 
 export default function MasScreen() {
   const { user, signOut } = useAuth();
   const router = useRouter();
 
+  const initials = user?.nombre
+    ? user.nombre.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'UA';
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Profile Header card */}
-      <GlassCard style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {user?.nombre ? user.nombre.substring(0, 2).toUpperCase() : 'UA'}
-          </Text>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* ── Profile Card ── */}
+      <LinearGradient
+        colors={['#1A2E1A', '#0F1F14']}
+        style={styles.profileCard}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.avatarRing}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
         </View>
         <Text style={styles.userName}>{user?.nombre || 'Usuario de NutriAI'}</Text>
         <Text style={styles.userEmail}>{user?.email || ''}</Text>
-      </GlassCard>
+        <View style={styles.planBadge}>
+          <Ionicons name="checkmark-circle" size={13} color={Colors.primary} />
+          <Text style={styles.planBadgeText}>Plan Activo</Text>
+        </View>
+      </LinearGradient>
 
-      {/* Menu List */}
-      <GlassCard>
+      {/* ── Specialized Modules ── */}
+      <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Módulos Especializados</Text>
+      </View>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/clinical')}>
-          <View style={styles.menuItemLeft}>
-            <View style={[styles.iconBg, { backgroundColor: 'rgba(167, 139, 250, 0.15)' }]}>
-              <Ionicons name="pulse" size={20} color={Colors.secondary} />
-            </View>
-            <View>
-              <Text style={styles.menuItemTitle}>Analítica Clínica</Text>
-              <Text style={styles.menuItemSub}>Sube tus análisis de sangre para adaptar tu dieta.</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-        </TouchableOpacity>
+      <View style={styles.menuCard}>
+        {MENU_ITEMS.map((item, i) => (
+          <React.Fragment key={item.route}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push(item.route)}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.iconBg, { backgroundColor: item.color + '18' }]}>
+                <Ionicons name={item.icon as any} size={22} color={item.color} />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuItemTitle}>{item.label}</Text>
+                <Text style={styles.menuItemSub}>{item.sub}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+            </TouchableOpacity>
+            {i < MENU_ITEMS.length - 1 && <View style={styles.menuDivider} />}
+          </React.Fragment>
+        ))}
+      </View>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/patologia')}>
-          <View style={styles.menuItemLeft}>
-            <View style={[styles.iconBg, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-              <Ionicons name="medical" size={20} color={Colors.danger} />
-            </View>
-            <View>
-              <Text style={styles.menuItemTitle}>Patologías e Intolerancias</Text>
-              <Text style={styles.menuItemSub}>Configura restricciones clínicas activas.</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-        </TouchableOpacity>
+      {/* ── App Info ── */}
+      <View style={styles.infoCard}>
+        <View style={styles.infoRow}>
+          <Ionicons name="information-circle-outline" size={18} color={Colors.textSecondary} />
+          <Text style={styles.infoText}>NutriAI v1.0</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Ionicons name="shield-checkmark-outline" size={18} color={Colors.textSecondary} />
+          <Text style={styles.infoText}>Datos seguros y encriptados</Text>
+        </View>
+      </View>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/suplementos')}>
-          <View style={styles.menuItemLeft}>
-            <View style={[styles.iconBg, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-              <Ionicons name="leaf" size={20} color={Colors.success} />
-            </View>
-            <View>
-              <Text style={styles.menuItemTitle}>Suplementación</Text>
-              <Text style={styles.menuItemSub}>Ver tus recomendaciones nutricionales.</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-        </TouchableOpacity>
-      </GlassCard>
-
-      {/* Logout Card */}
-      <TouchableOpacity style={styles.logoutBtn} onPress={signOut}>
+      {/* ── Logout ── */}
+      <TouchableOpacity style={styles.logoutBtn} onPress={signOut} activeOpacity={0.8}>
         <Ionicons name="log-out-outline" size={20} color={Colors.danger} />
-        <Text style={styles.logoutBtnText}>Cerrar Sesión</Text>
+        <Text style={styles.logoutText}>Cerrar Sesión</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -78,97 +125,162 @@ export default function MasScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.background,
-    padding: 20,
-    paddingBottom: 40,
     flexGrow: 1,
+    backgroundColor: Colors.background,
+    padding: Spacing.md,
+    paddingBottom: 48,
   },
+
+  // Profile
   profileCard: {
+    borderRadius: Radius.xxl,
+    borderColor: Colors.primary + '25',
+    borderWidth: 1,
     alignItems: 'center',
-    paddingVertical: 24,
-    marginBottom: 20,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  avatarRing: {
+    padding: 3,
+    borderRadius: 999,
+    borderColor: Colors.primary,
+    borderWidth: 2,
+    marginBottom: Spacing.md,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.primary,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.primaryFaint,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
   avatarText: {
-    color: Colors.text,
-    fontSize: 22,
-    fontWeight: '800',
+    color: Colors.primary,
+    fontSize: 26,
+    fontWeight: '900',
   },
   userName: {
     color: Colors.text,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   userEmail: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 13,
-    marginTop: 4,
+    marginBottom: Spacing.sm,
+  },
+  planBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primaryFaint,
+    borderColor: Colors.primary + '30',
+    borderWidth: 1,
+    borderRadius: Radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    gap: 5,
+  },
+  planBadgeText: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Section header
+  sectionHeader: {
+    marginBottom: Spacing.sm,
   },
   sectionTitle: {
-    color: Colors.text,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
-    paddingBottom: 8,
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+
+  // Menu
+  menuCard: {
+    backgroundColor: Colors.backgroundGradStart,
+    borderRadius: Radius.xl,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: Spacing.md,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomColor: 'rgba(255, 255, 255, 0.03)',
-    borderBottomWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: Spacing.md,
   },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    paddingRight: 16,
+  menuDivider: {
+    height: 1,
+    backgroundColor: Colors.cardBorder,
+    marginHorizontal: Spacing.md,
   },
   iconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
+    flexShrink: 0,
+  },
+  menuTextCol: {
+    flex: 1,
+    paddingRight: Spacing.sm,
   },
   menuItemTitle: {
     color: Colors.text,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 3,
   },
   menuItemSub: {
-    color: Colors.textMuted,
-    fontSize: 11,
-    marginTop: 3,
-    lineHeight: 14,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
   },
+
+  // Info card
+  infoCard: {
+    backgroundColor: Colors.backgroundGradStart,
+    borderRadius: Radius.xl,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: 10,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+  },
+
+  // Logout
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: Colors.danger + '0E',
+    borderColor: Colors.danger + '30',
     borderWidth: 1,
-    backgroundColor: 'rgba(239, 68, 68, 0.05)',
-    borderRadius: 12,
+    borderRadius: Radius.lg,
     paddingVertical: 14,
-    marginTop: 12,
+    gap: 8,
   },
-  logoutBtnText: {
+  logoutText: {
     color: Colors.danger,
     fontWeight: '700',
-    fontSize: 14,
-    marginLeft: 8,
+    fontSize: 15,
   },
 });

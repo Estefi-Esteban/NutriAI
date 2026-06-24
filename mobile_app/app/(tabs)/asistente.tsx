@@ -1,14 +1,58 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  StyleSheet, Text, View, ScrollView, TextInput,
+  TouchableOpacity, ActivityIndicator, Alert,
+  KeyboardAvoidingView, Platform
+} from 'react-native';
 import { Colors } from '../../constants/Colors';
+import { Spacing, Radius } from '../../constants/theme';
 import { api } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Message {
   rol: 'user' | 'assistant';
   contenido: string;
+  timestamp?: Date;
 }
 
+// ─── Chat Bubble ──────────────────────────────────────────────────────────
+function ChatBubble({ msg }: { msg: Message }) {
+  const isUser = msg.rol === 'user';
+  return (
+    <View style={[styles.msgWrapper, isUser ? styles.wrapperUser : styles.wrapperAI]}>
+      {!isUser && (
+        <View style={styles.aiAvatar}>
+          <Text style={styles.aiAvatarEmoji}>🤖</Text>
+        </View>
+      )}
+      <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAI]}>
+        <Text style={styles.msgText}>{msg.contenido}</Text>
+      </View>
+      {isUser && (
+        <View style={styles.userAvatar}>
+          <Ionicons name="person" size={14} color={Colors.primary} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── Suggestion Chip ──────────────────────────────────────────────────────
+function SuggestionChip({ text, onPress }: { text: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.chip} onPress={onPress} activeOpacity={0.7}>
+      <Text style={styles.chipText}>{text}</Text>
+    </TouchableOpacity>
+  );
+}
+
+const SUGGESTIONS = [
+  '¿Qué puedo comer si tengo hambre a media tarde?',
+  '¿Puedo sustituir el pollo por tofu?',
+  '¿Cuánta proteína necesito al día?',
+];
+
+// ─── Main Screen ──────────────────────────────────────────────────────────
 export default function AsistenteScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -21,27 +65,25 @@ export default function AsistenteScreen() {
     try {
       const res = await api.getHistorialAsistente(20);
       setMessages(res.mensajes || []);
-    } catch (e: any) {
+    } catch {
       Alert.alert('Error', 'No se pudo cargar el historial de chat.');
     } finally {
       setLoadingHistory(false);
     }
   };
 
-  useEffect(() => {
-    loadHistory();
-  }, []);
+  useEffect(() => { loadHistory(); }, []);
 
-  const handleSend = async () => {
-    if (!inputValue.trim() || loading) return;
+  const handleSend = async (text?: string) => {
+    const msgText = (text || inputValue).trim();
+    if (!msgText || loading) return;
 
-    const userText = inputValue.trim();
     setInputValue('');
-    setMessages(prev => [...prev, { rol: 'user', contenido: userText }]);
+    setMessages(prev => [...prev, { rol: 'user', contenido: msgText }]);
     setLoading(true);
 
     try {
-      const res = await api.enviarMensajeAsistente(userText);
+      const res = await api.enviarMensajeAsistente(msgText);
       setMessages(prev => [...prev, { rol: 'assistant', contenido: res.respuesta }]);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'No se pudo enviar el mensaje.');
@@ -53,7 +95,7 @@ export default function AsistenteScreen() {
   const handleClearHistory = () => {
     Alert.alert(
       'Vaciar Historial',
-      '¿Estás seguro de que quieres borrar todo el historial de conversación? Esto no se puede deshacer.',
+      '¿Estás seguro de que quieres borrar toda la conversación?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -63,8 +105,7 @@ export default function AsistenteScreen() {
             try {
               await api.limpiarHistorialAsistente();
               setMessages([]);
-              Alert.alert('Borrado', 'El historial se ha vaciado.');
-            } catch (e) {
+            } catch {
               Alert.alert('Error', 'No se pudo borrar el historial.');
             }
           }
@@ -79,73 +120,86 @@ export default function AsistenteScreen() {
       style={styles.container}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <View style={styles.topHeader}>
-        <Text style={styles.headerTitle}>Conversación Personal</Text>
+      {/* Sub-header */}
+      <View style={styles.subHeader}>
+        <View style={styles.aiStatusRow}>
+          <View style={styles.statusDot} />
+          <Text style={styles.subHeaderText}>NutriAI · Activo</Text>
+        </View>
         <TouchableOpacity onPress={handleClearHistory} style={styles.clearBtn}>
-          <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+          <Ionicons name="trash-outline" size={16} color={Colors.danger} />
           <Text style={styles.clearBtnText}>Vaciar</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Messages */}
       {loadingHistory ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Cargando historial...</Text>
         </View>
       ) : (
         <ScrollView
           ref={scrollViewRef}
           contentContainerStyle={styles.messagesList}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+          showsVerticalScrollIndicator={false}
         >
           {messages.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="chatbox-ellipses-outline" size={48} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>Conversación vacía.</Text>
-              <Text style={styles.emptySubtext}>Pregúntame sobre sustituciones de alimentos, suplementos, o dudas sobre tu plan nutricional activo.</Text>
+              <Text style={styles.emptyEmoji}>🤖</Text>
+              <Text style={styles.emptyTitle}>¿En qué puedo ayudarte?</Text>
+              <Text style={styles.emptySubtitle}>
+                Pregúntame sobre sustituciones, suplementos, o cualquier duda de tu plan.
+              </Text>
+              {/* Suggestions */}
+              <View style={styles.suggestionsRow}>
+                {SUGGESTIONS.map((s, i) => (
+                  <SuggestionChip key={i} text={s} onPress={() => handleSend(s)} />
+                ))}
+              </View>
             </View>
           ) : (
-            messages.map((msg, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.msgContainer,
-                  msg.rol === 'user' ? styles.userContainer : styles.aiContainer
-                ]}
-              >
-                <Text style={styles.senderLabel}>
-                  {msg.rol === 'user' ? 'Tú' : 'NutriAI'}
-                </Text>
-                <View
-                  style={[
-                    styles.bubble,
-                    msg.rol === 'user' ? styles.userBubble : styles.aiBubble
-                  ]}
-                >
-                  <Text style={styles.msgText}>{msg.contenido}</Text>
+            <>
+              {messages.map((msg, i) => (
+                <ChatBubble key={i} msg={msg} />
+              ))}
+              {loading && (
+                <View style={styles.typingIndicator}>
+                  <View style={styles.aiAvatar}>
+                    <Text style={styles.aiAvatarEmoji}>🤖</Text>
+                  </View>
+                  <View style={styles.typingBubble}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                    <Text style={styles.typingText}>NutriAI está escribiendo...</Text>
+                  </View>
                 </View>
-              </View>
-            ))
-          )}
-          {loading && (
-            <View style={[styles.msgContainer, styles.aiContainer]}>
-              <ActivityIndicator color={Colors.primary} size="small" style={styles.loader} />
-            </View>
+              )}
+            </>
           )}
         </ScrollView>
       )}
 
+      {/* Input Area */}
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Haz una pregunta a la IA..."
-          placeholderTextColor={Colors.textMuted}
+          placeholder="Pregunta algo sobre nutrición..."
+          placeholderTextColor={Colors.textTertiary}
           value={inputValue}
           onChangeText={setInputValue}
-          onSubmitEditing={handleSend}
-          disabled={loading}
+          onSubmitEditing={() => handleSend()}
+          multiline
+          maxLength={500}
+          editable={!loading}
         />
-        <TouchableOpacity onPress={handleSend} style={styles.sendBtn} disabled={loading}>
-          <Text style={styles.sendBtnText}>Enviar</Text>
+        <TouchableOpacity
+          onPress={() => handleSend()}
+          style={[styles.sendBtn, (!inputValue.trim() || loading) && styles.sendBtnDisabled]}
+          disabled={!inputValue.trim() || loading}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="send" size={18} color={inputValue.trim() ? '#000' : Colors.textTertiary} />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -157,139 +211,235 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  topHeader: {
+
+  // Sub-header
+  subHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    backgroundColor: Colors.backgroundGradStart,
     borderBottomColor: Colors.cardBorder,
     borderBottomWidth: 1,
-    backgroundColor: Colors.backgroundGradStart,
   },
-  headerTitle: {
-    color: Colors.text,
-    fontWeight: '700',
-    fontSize: 14,
+  aiStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
+    marginRight: 8,
+  },
+  subHeaderText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   clearBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: Colors.danger + '15',
+    borderColor: Colors.danger + '30',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
+    gap: 4,
   },
   clearBtnText: {
     color: Colors.danger,
     fontSize: 12,
     fontWeight: '700',
-    marginLeft: 4,
   },
+
+  // Loading
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  loadingText: {
+    color: Colors.textSecondary,
+    marginTop: 10,
+    fontSize: 13,
+  },
+
+  // Messages
   messagesList: {
-    padding: 16,
-    paddingBottom: 24,
+    padding: Spacing.md,
+    paddingBottom: Spacing.lg,
     flexGrow: 1,
   },
+
+  // Empty
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 48,
+    paddingTop: 48,
+    paddingHorizontal: Spacing.lg,
   },
-  emptyText: {
+  emptyEmoji: {
+    fontSize: 52,
+    marginBottom: Spacing.md,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '800',
     color: Colors.text,
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    color: Colors.textMuted,
-    fontSize: 13,
+    marginBottom: 8,
     textAlign: 'center',
-    lineHeight: 18,
-    marginTop: 8,
   },
-  msgContainer: {
-    marginBottom: 16,
-    maxWidth: '85%',
+  emptySubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: Spacing.lg,
   },
-  userContainer: {
-    alignSelf: 'flex-end',
-    alignItems: 'flex-end',
+  suggestionsRow: {
+    width: '100%',
+    gap: 8,
   },
-  aiContainer: {
-    alignSelf: 'flex-start',
-    alignItems: 'flex-start',
-  },
-  senderLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginBottom: 4,
-    fontWeight: '600',
-  },
-  bubble: {
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  userBubble: {
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-    borderColor: 'rgba(99, 102, 241, 0.4)',
-    borderWidth: 1,
-    borderBottomRightRadius: 2,
-  },
-  aiBubble: {
-    backgroundColor: Colors.cardBg,
+  chip: {
+    backgroundColor: Colors.backgroundGradStart,
     borderColor: Colors.cardBorder,
     borderWidth: 1,
-    borderBottomLeftRadius: 2,
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+  },
+  chipText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+
+  // Chat bubbles
+  msgWrapper: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: Spacing.sm + 4,
+    maxWidth: '88%',
+  },
+  wrapperUser: {
+    alignSelf: 'flex-end',
+    justifyContent: 'flex-end',
+  },
+  wrapperAI: {
+    alignSelf: 'flex-start',
+  },
+  aiAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primaryFaint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    flexShrink: 0,
+  },
+  aiAvatarEmoji: {
+    fontSize: 14,
+  },
+  userAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.primaryFaint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+    flexShrink: 0,
+  },
+  bubble: {
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    maxWidth: '100%',
+  },
+  bubbleUser: {
+    backgroundColor: Colors.primaryFaint,
+    borderColor: Colors.primary + '40',
+    borderWidth: 1,
+    borderBottomRightRadius: 4,
+  },
+  bubbleAI: {
+    backgroundColor: Colors.backgroundGradStart,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
+    borderBottomLeftRadius: 4,
   },
   msgText: {
     color: Colors.text,
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 21,
   },
-  loader: {
-    marginLeft: 12,
-  },
-  inputContainer: {
+
+  // Typing indicator
+  typingIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    alignSelf: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  typingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.backgroundGradStart,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  typingText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+
+  // Input
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: Spacing.sm + 4,
+    paddingBottom: Spacing.md,
     borderTopColor: Colors.cardBorder,
     borderTopWidth: 1,
     backgroundColor: Colors.backgroundGradStart,
+    gap: 8,
   },
   input: {
     flex: 1,
     backgroundColor: Colors.inputBg,
     borderColor: Colors.inputBorder,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: Radius.lg,
     color: Colors.text,
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.md,
     paddingVertical: 10,
     fontSize: 15,
-    marginRight: 10,
+    maxHeight: 100,
   },
   sendBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
-  sendBtnText: {
-    color: Colors.text,
-    fontWeight: '700',
-    fontSize: 14,
+  sendBtnDisabled: {
+    backgroundColor: Colors.cardBg,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
   },
 });

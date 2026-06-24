@@ -2,29 +2,40 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.secondary,
+        tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
           backgroundColor: Colors.backgroundGradStart,
           borderTopColor: Colors.cardBorder,
-          height: Platform.OS === 'ios' ? 88 : 60,
-          paddingBottom: Platform.OS === 'ios' ? 30 : 10,
+          borderTopWidth: 1,
+          height: 60 + insets.bottom,           // dinámico para Android/iOS
+          paddingBottom: insets.bottom + 8,      // respeta la barra del sistema
           paddingTop: 10,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
         },
         headerStyle: {
           backgroundColor: Colors.background,
           borderBottomColor: Colors.cardBorder,
           borderBottomWidth: 1,
+          shadowOpacity: 0,
+          elevation: 0,
         },
         headerTintColor: Colors.text,
         headerTitleStyle: {
-          fontWeight: '700',
+          fontWeight: '800',
+          fontSize: 18,
+          color: Colors.text,
         },
       }}
     >
@@ -32,7 +43,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Inicio',
-          headerTitle: 'NutriAI',
+          headerTitle: '🥗 NutriAI',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
           ),
@@ -72,7 +83,7 @@ export default function TabsLayout() {
         name="mas"
         options={{
           title: 'Más',
-          headerTitle: 'Configuración y Módulos',
+          headerTitle: 'Mi Perfil',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'grid' : 'grid-outline'} size={24} color={color} />
           ),

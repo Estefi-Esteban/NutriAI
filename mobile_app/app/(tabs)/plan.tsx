@@ -1,24 +1,75 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal } from 'react-native';
+import {
+  StyleSheet, Text, View, ScrollView,
+  TouchableOpacity, ActivityIndicator, Alert, Modal
+} from 'react-native';
 import { Colors } from '../../constants/Colors';
+import { Spacing, Radius } from '../../constants/theme';
 import { api } from '../../services/api';
 import { GlassCard } from '../../components/GlassCard';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const DIAS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
+const MEAL_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
+  desayuno: { label: 'Desayuno', icon: 'sunny-outline', color: Colors.macroCarbs },
+  comida:   { label: 'Comida',   icon: 'restaurant-outline', color: Colors.primary },
+  cena:     { label: 'Cena',     icon: 'moon-outline', color: '#A78BFA' },
+  snack:    { label: 'Snack',    icon: 'nutrition-outline', color: Colors.macroProtein },
+};
+
+// ─── Meal Card ────────────────────────────────────────────────────────────
+function MealCard({ mealKey, meal, onPress }: { mealKey: string; meal: any; onPress: () => void }) {
+  const config = MEAL_CONFIG[mealKey] || { label: mealKey, icon: 'restaurant-outline', color: Colors.primary };
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={onPress}>
+      <View style={styles.mealCard}>
+        {/* Colored left border */}
+        <View style={[styles.mealAccentBar, { backgroundColor: config.color }]} />
+        <View style={styles.mealCardContent}>
+          <View style={styles.mealHeader}>
+            <View style={[styles.mealTypeChip, { backgroundColor: config.color + '18' }]}>
+              <Ionicons name={config.icon as any} size={13} color={config.color} />
+              <Text style={[styles.mealTypeText, { color: config.color }]}>{config.label}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Ionicons name="time-outline" size={12} color={Colors.textTertiary} />
+              <Text style={styles.timeChipText}>{meal.tiempo_preparacion || '15 min'}</Text>
+            </View>
+          </View>
+          <Text style={styles.mealName}>{meal.nombre_plato}</Text>
+          <View style={styles.macroBadgesRow}>
+            <View style={[styles.badge, { backgroundColor: Colors.primary + '18' }]}>
+              <Text style={[styles.badgeText, { color: Colors.primary }]}>{meal.kcal} kcal</Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: Colors.macroProtein + '18' }]}>
+              <Text style={[styles.badgeText, { color: Colors.macroProtein }]}>{meal.proteinas_g}g P</Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: Colors.macroCarbs + '18' }]}>
+              <Text style={[styles.badgeText, { color: Colors.macroCarbs }]}>{meal.carbos_g}g C</Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: Colors.macroFat + '18' }]}>
+              <Text style={[styles.badgeText, { color: Colors.macroFat }]}>{meal.grasas_g}g G</Text>
+            </View>
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} style={styles.mealChevron} />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────
 export default function PlanScreen() {
   const [activeTab, setActiveTab] = useState<'menu' | 'shopping'>('menu');
   const [selectedDay, setSelectedDay] = useState('Lunes');
   const [plan, setPlan] = useState<any>(null);
   const [shoppingList, setShoppingList] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Recipe Modal State
   const [selectedMeal, setSelectedMeal] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
-
-  // Checklist items
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
   const loadData = async () => {
@@ -28,22 +79,14 @@ export default function PlanScreen() {
       setPlan(activePlan);
       const list = await api.getListaCompra();
       setShoppingList(list.categorias || []);
-    } catch (e: any) {
-      // User might not have generated a plan yet
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const toggleCheckItem = (itemName: string) => {
-    setCheckedItems(prev => ({
-      ...prev,
-      [itemName]: !prev[itemName],
-    }));
+    setCheckedItems(prev => ({ ...prev, [itemName]: !prev[itemName] }));
   };
 
   const openRecipeDetails = (meal: any, title: string) => {
@@ -55,6 +98,7 @@ export default function PlanScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Cargando tu plan...</Text>
       </View>
     );
   }
@@ -62,206 +106,223 @@ export default function PlanScreen() {
   if (!plan) {
     return (
       <View style={styles.noPlanContainer}>
-        <Text style={styles.noPlanText}>Aún no has generado ningún plan.</Text>
-        <Text style={styles.noPlanSubtext}>Ve al Inicio para empezar tu onboarding.</Text>
+        <Text style={styles.noPlanEmoji}>🍽️</Text>
+        <Text style={styles.noPlanText}>Sin plan activo</Text>
+        <Text style={styles.noPlanSubtext}>Ve al Inicio y completa el onboarding para generar tu menú semanal.</Text>
       </View>
     );
   }
 
-  // Get meals for selected day
   const mealsForDay = plan.plan_semanal?.[selectedDay] || {};
 
   return (
     <View style={styles.container}>
-      {/* Tab Switcher */}
+      {/* ── Tab Switcher ── */}
       <View style={styles.tabBar}>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'menu' && styles.tabButtonActive]}
+          style={[styles.tabBtn, activeTab === 'menu' && styles.tabBtnActive]}
           onPress={() => setActiveTab('menu')}
         >
-          <Text style={[styles.tabText, activeTab === 'menu' && styles.tabTextActive]}>🍽️ Menú Semanal</Text>
+          <Ionicons
+            name="restaurant-outline"
+            size={16}
+            color={activeTab === 'menu' ? Colors.primary : Colors.textSecondary}
+          />
+          <Text style={[styles.tabText, activeTab === 'menu' && styles.tabTextActive]}>
+            Menú Semanal
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'shopping' && styles.tabButtonActive]}
+          style={[styles.tabBtn, activeTab === 'shopping' && styles.tabBtnActive]}
           onPress={() => setActiveTab('shopping')}
         >
-          <Text style={[styles.tabText, activeTab === 'shopping' && styles.tabTextActive]}>🛒 Lista de Compra</Text>
+          <Ionicons
+            name="cart-outline"
+            size={16}
+            color={activeTab === 'shopping' ? Colors.primary : Colors.textSecondary}
+          />
+          <Text style={[styles.tabText, activeTab === 'shopping' && styles.tabTextActive]}>
+            Lista de Compra
+          </Text>
         </TouchableOpacity>
       </View>
 
       {activeTab === 'menu' ? (
         <View style={{ flex: 1 }}>
-          {/* Day Selector */}
+          {/* ── Day Selector ── */}
           <View style={styles.daySelectorContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.daySelectorScroll}>
-              {DIAS.map(day => (
+              {DIAS.map((day, idx) => (
                 <TouchableOpacity
                   key={day}
                   style={[styles.dayBadge, selectedDay === day && styles.dayBadgeActive]}
                   onPress={() => setSelectedDay(day)}
                 >
-                  <Text style={[styles.dayBadgeText, selectedDay === day && styles.dayBadgeTextActive]}>
-                    {day}
+                  <Text style={[styles.dayBadgeShort, selectedDay === day && styles.dayBadgeShortActive]}>
+                    {DIAS_SHORT[idx]}
+                  </Text>
+                  <Text style={[styles.dayBadgeNum, selectedDay === day && styles.dayBadgeNumActive]}>
+                    {idx + 1}
                   </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
 
-          {/* Meals List */}
+          {/* ── Meals List ── */}
           <ScrollView contentContainerStyle={styles.scrollContent}>
             {['desayuno', 'comida', 'cena', 'snack'].map(mealKey => {
               const meal = mealsForDay[mealKey];
               if (!meal) return null;
-
-              const mealTitle = mealKey.charAt(0).toUpperCase() + mealKey.slice(1);
               return (
-                <TouchableOpacity
+                <MealCard
                   key={mealKey}
-                  activeOpacity={0.85}
-                  onPress={() => openRecipeDetails(meal, mealTitle)}
-                >
-                  <GlassCard style={styles.mealCard}>
-                    <View style={styles.mealHeader}>
-                      <Text style={styles.mealType}>{mealTitle}</Text>
-                      <View style={styles.timeContainer}>
-                        <Ionicons name="time-outline" size={14} color={Colors.textMuted} />
-                        <Text style={styles.timeText}>{meal.tiempo_preparacion || '15 min'}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.mealName}>{meal.nombre_plato}</Text>
-                    <View style={styles.macroBadgeRow}>
-                      <View style={[styles.badge, styles.badgeKcal]}>
-                        <Text style={styles.badgeText}>{meal.kcal} Kcal</Text>
-                      </View>
-                      <View style={[styles.badge, styles.badgeProt]}>
-                        <Text style={styles.badgeText}>{meal.proteinas_g}g P</Text>
-                      </View>
-                      <View style={[styles.badge, styles.badgeCarb]}>
-                        <Text style={styles.badgeText}>{meal.carbos_g}g C</Text>
-                      </View>
-                      <View style={[styles.badge, styles.badgeFat]}>
-                        <Text style={styles.badgeText}>{meal.grasas_g}g G</Text>
-                      </View>
-                    </View>
-                  </GlassCard>
-                </TouchableOpacity>
+                  mealKey={mealKey}
+                  meal={meal}
+                  onPress={() => openRecipeDetails(meal, MEAL_CONFIG[mealKey]?.label || mealKey)}
+                />
               );
             })}
+            {Object.keys(mealsForDay).length === 0 && (
+              <View style={styles.emptyDay}>
+                <Ionicons name="calendar-outline" size={36} color={Colors.textTertiary} />
+                <Text style={styles.emptyDayText}>No hay comidas para {selectedDay}</Text>
+              </View>
+            )}
           </ScrollView>
         </View>
       ) : (
-        /* Shopping List */
+        /* ── Shopping List ── */
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {shoppingList && shoppingList.length > 0 ? (
-            shoppingList.map((cat: any, i: number) => (
-              <GlassCard key={i}>
-                <Text style={styles.categoryTitle}>{cat.nombre_categoria}</Text>
-                {cat.ingredientes.map((ing: any, idx: number) => {
-                  const isChecked = checkedItems[ing.nombre] || false;
-                  return (
-                    <TouchableOpacity
-                      key={idx}
-                      style={styles.shoppingItem}
-                      activeOpacity={0.7}
-                      onPress={() => toggleCheckItem(ing.nombre)}
-                    >
-                      <View style={styles.shoppingItemLeft}>
+            shoppingList.map((cat: any, i: number) => {
+              const checkedCount = cat.ingredientes.filter((ing: any) => checkedItems[ing.nombre]).length;
+              return (
+                <View key={i} style={styles.shoppingCategory}>
+                  <View style={styles.shopCatHeader}>
+                    <Text style={styles.shopCatTitle}>{cat.nombre_categoria}</Text>
+                    <Text style={styles.shopCatCount}>
+                      {checkedCount}/{cat.ingredientes.length}
+                    </Text>
+                  </View>
+                  {cat.ingredientes.map((ing: any, idx: number) => {
+                    const isChecked = checkedItems[ing.nombre] || false;
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        style={styles.shoppingItem}
+                        onPress={() => toggleCheckItem(ing.nombre)}
+                        activeOpacity={0.7}
+                      >
                         <Ionicons
                           name={isChecked ? 'checkmark-circle' : 'ellipse-outline'}
-                          size={20}
-                          color={isChecked ? Colors.success : Colors.textMuted}
+                          size={22}
+                          color={isChecked ? Colors.primary : Colors.textTertiary}
                         />
-                        <Text style={[styles.shoppingItemName, isChecked && styles.shoppingItemChecked]}>
+                        <Text style={[styles.shoppingName, isChecked && styles.shoppingChecked]}>
                           {ing.nombre}
                         </Text>
-                      </View>
-                      <Text style={styles.shoppingItemQty}>
-                        {ing.cantidad} {ing.unidad}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </GlassCard>
-            ))
+                        <Text style={styles.shoppingQty}>
+                          {ing.cantidad} {ing.unidad}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              );
+            })
           ) : (
-            <Text style={styles.emptyText}>No hay lista de compra generada.</Text>
+            <View style={styles.emptyDay}>
+              <Ionicons name="cart-outline" size={36} color={Colors.textTertiary} />
+              <Text style={styles.emptyDayText}>No hay lista de compra generada</Text>
+            </View>
           )}
         </ScrollView>
       )}
 
-      {/* Recipe Modal Details */}
+      {/* ── Recipe Modal ── */}
       {selectedMeal && (
         <Modal
           animationType="slide"
-          transparent={true}
+          transparent
           visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
         >
-          <View style={styles.modalBg}>
-            <View style={styles.modalContent}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalSheet}>
+              {/* Handle */}
+              <View style={styles.modalHandle} />
+
+              {/* Modal Header */}
               <View style={styles.modalHeader}>
-                <Text style={styles.modalSubtitle}>{selectedMeal.title}</Text>
+                <View>
+                  <Text style={styles.modalCategory}>{selectedMeal.title}</Text>
+                  <Text style={styles.modalTitle}>{selectedMeal.nombre_plato}</Text>
+                </View>
                 <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
-                  <Ionicons name="close" size={24} color={Colors.text} />
+                  <Ionicons name="close" size={22} color={Colors.text} />
                 </TouchableOpacity>
               </View>
-              
-              <ScrollView contentContainerStyle={styles.modalScroll}>
-                <Text style={styles.modalTitle}>{selectedMeal.nombre_plato}</Text>
-                
-                {/* Meta stats */}
+
+              <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                {/* Meta row */}
                 <View style={styles.metaRow}>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="flash-outline" size={16} color={Colors.accent} />
-                    <Text style={styles.metaLabel}>{selectedMeal.kcal} kcal</Text>
+                  <View style={styles.metaBadge}>
+                    <Ionicons name="flash" size={14} color={Colors.primary} />
+                    <Text style={styles.metaText}>{selectedMeal.kcal} kcal</Text>
                   </View>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="time-outline" size={16} color={Colors.secondary} />
-                    <Text style={styles.metaLabel}>{selectedMeal.tiempo_preparacion || '15 min'}</Text>
+                  <View style={styles.metaBadge}>
+                    <Ionicons name="time-outline" size={14} color={Colors.macroCarbs} />
+                    <Text style={styles.metaText}>{selectedMeal.tiempo_preparacion || '15 min'}</Text>
                   </View>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="ribbon-outline" size={16} color={Colors.success} />
-                    <Text style={styles.metaLabel}>Dificultad: {selectedMeal.dificultad || 'Fácil'}</Text>
+                  <View style={styles.metaBadge}>
+                    <Ionicons name="ribbon-outline" size={14} color={Colors.macroFat} />
+                    <Text style={styles.metaText}>{selectedMeal.dificultad || 'Fácil'}</Text>
                   </View>
                 </View>
 
-                {/* Macros Breakdown */}
-                <Text style={styles.subTitle}>Macronutrientes</Text>
-                <View style={styles.modalMacrosRow}>
-                  <View style={styles.macroItem}>
-                    <Text style={styles.macroItemValue}>{selectedMeal.proteinas_g}g</Text>
-                    <Text style={styles.macroItemLabel}>Proteína</Text>
-                  </View>
-                  <View style={styles.macroItem}>
-                    <Text style={styles.macroItemValue}>{selectedMeal.carbos_g}g</Text>
-                    <Text style={styles.macroItemLabel}>Carbos</Text>
-                  </View>
-                  <View style={styles.macroItem}>
-                    <Text style={styles.macroItemValue}>{selectedMeal.grasas_g}g</Text>
-                    <Text style={styles.macroItemLabel}>Grasas</Text>
-                  </View>
+                {/* Macros */}
+                <Text style={styles.modalSectionTitle}>Macronutrientes</Text>
+                <View style={styles.macrosBox}>
+                  {[
+                    { val: selectedMeal.proteinas_g, label: 'Proteína', color: Colors.macroProtein },
+                    { val: selectedMeal.carbos_g, label: 'Carbos', color: Colors.macroCarbs },
+                    { val: selectedMeal.grasas_g, label: 'Grasas', color: Colors.macroFat },
+                  ].map((m, i) => (
+                    <View key={i} style={styles.macroBox}>
+                      <Text style={[styles.macroBoxVal, { color: m.color }]}>{m.val}g</Text>
+                      <Text style={styles.macroBoxLabel}>{m.label}</Text>
+                    </View>
+                  ))}
                 </View>
 
                 {/* Ingredients */}
-                <Text style={styles.subTitle}>Ingredientes necesarios</Text>
-                {selectedMeal.ingredientes && selectedMeal.ingredientes.map((ing: string, index: number) => (
-                  <View key={index} style={styles.ingredientLine}>
-                    <Text style={styles.bulletPoint}>•</Text>
-                    <Text style={styles.ingredientText}>{ing}</Text>
-                  </View>
-                ))}
+                {selectedMeal.ingredientes && (
+                  <>
+                    <Text style={styles.modalSectionTitle}>Ingredientes</Text>
+                    {selectedMeal.ingredientes.map((ing: string, i: number) => (
+                      <View key={i} style={styles.ingredientRow}>
+                        <View style={styles.ingredientDot} />
+                        <Text style={styles.ingredientText}>{ing}</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
 
-                {/* Instructions */}
-                <Text style={styles.subTitle}>Pasos de preparación</Text>
-                {selectedMeal.pasos && selectedMeal.pasos.map((step: string, index: number) => (
-                  <View key={index} style={styles.stepContainer}>
-                    <View style={styles.stepNumCircle}>
-                      <Text style={styles.stepNumText}>{index + 1}</Text>
-                    </View>
-                    <Text style={styles.stepText}>{step}</Text>
-                  </View>
-                ))}
+                {/* Steps */}
+                {selectedMeal.pasos && (
+                  <>
+                    <Text style={styles.modalSectionTitle}>Preparación</Text>
+                    {selectedMeal.pasos.map((step: string, i: number) => (
+                      <View key={i} style={styles.stepRow}>
+                        <View style={styles.stepCircle}>
+                          <Text style={styles.stepNum}>{i + 1}</Text>
+                        </View>
+                        <Text style={styles.stepText}>{step}</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
               </ScrollView>
             </View>
           </View>
@@ -282,84 +343,129 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  loadingText: {
+    color: Colors.textSecondary,
+    marginTop: 12,
+    fontSize: 14,
+  },
   noPlanContainer: {
     flex: 1,
     backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: Spacing.lg,
   },
+  noPlanEmoji: { fontSize: 52, marginBottom: Spacing.md },
   noPlanText: {
     color: Colors.text,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     textAlign: 'center',
   },
   noPlanSubtext: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
+    lineHeight: 20,
   },
+
+  // Tab bar
   tabBar: {
     flexDirection: 'row',
     backgroundColor: Colors.backgroundGradStart,
     borderBottomColor: Colors.cardBorder,
     borderBottomWidth: 1,
   },
-  tabButton: {
+  tabBtn: {
     flex: 1,
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 6,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  tabButtonActive: {
+  tabBtnActive: {
     borderBottomColor: Colors.primary,
-    borderBottomWidth: 3,
   },
   tabText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontWeight: '600',
     fontSize: 14,
   },
   tabTextActive: {
-    color: Colors.text,
+    color: Colors.primary,
   },
+
+  // Day selector
   daySelectorContainer: {
     backgroundColor: Colors.backgroundGradStart,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomColor: Colors.cardBorder,
     borderBottomWidth: 1,
   },
   daySelectorScroll: {
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.md,
+    gap: 8,
   },
   dayBadge: {
+    alignItems: 'center',
     backgroundColor: Colors.cardBg,
     borderColor: Colors.cardBorder,
     borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 16,
+    borderRadius: Radius.lg,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    marginRight: 8,
+    minWidth: 52,
   },
   dayBadgeActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primaryDark,
+    backgroundColor: Colors.primaryFaint,
+    borderColor: Colors.primary + '60',
   },
-  dayBadgeText: {
-    color: Colors.textMuted,
-    fontWeight: '600',
-    fontSize: 13,
+  dayBadgeShort: {
+    color: Colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  dayBadgeTextActive: {
-    color: Colors.text,
+  dayBadgeShortActive: {
+    color: Colors.primary,
   },
+  dayBadgeNum: {
+    color: Colors.textTertiary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  dayBadgeNumActive: {
+    color: Colors.primary,
+  },
+
   scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: Spacing.md,
+    paddingBottom: 40,
   },
+
+  // Meal Card
   mealCard: {
-    padding: 16,
+    flexDirection: 'row',
+    backgroundColor: Colors.backgroundGradStart,
+    borderRadius: Radius.xl,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
+    marginBottom: Spacing.sm + 4,
+    overflow: 'hidden',
+    alignItems: 'stretch',
+  },
+  mealAccentBar: {
+    width: 4,
+    flexShrink: 0,
+  },
+  mealCardContent: {
+    flex: 1,
+    padding: Spacing.md,
   },
   mealHeader: {
     flexDirection: 'row',
@@ -367,217 +473,270 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  mealType: {
-    color: Colors.secondary,
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 0.5,
-  },
-  timeContainer: {
+  mealTypeChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: Radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    gap: 4,
   },
-  timeText: {
-    color: Colors.textMuted,
+  mealTypeText: {
     fontSize: 12,
-    marginLeft: 4,
-    fontWeight: '500',
+    fontWeight: '700',
+  },
+  timeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  timeChipText: {
+    color: Colors.textTertiary,
+    fontSize: 12,
   },
   mealName: {
     color: Colors.text,
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 12,
+    marginBottom: Spacing.sm,
+    lineHeight: 22,
   },
-  macroBadgeRow: {
+  macroBadgesRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
   },
   badge: {
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    marginRight: 6,
   },
   badgeText: {
-    color: Colors.text,
     fontSize: 11,
-    fontWeight: '600',
-  },
-  badgeKcal: { backgroundColor: 'rgba(167, 139, 250, 0.2)' },
-  badgeProt: { backgroundColor: 'rgba(248, 113, 113, 0.2)' },
-  badgeCarb: { backgroundColor: 'rgba(251, 191, 36, 0.2)' },
-  badgeFat: { backgroundColor: 'rgba(52, 211, 153, 0.2)' },
-
-  // Shopping List Styles
-  categoryTitle: {
-    color: Colors.text,
-    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
-    paddingBottom: 6,
   },
-  shoppingItem: {
+  mealChevron: {
+    alignSelf: 'center',
+    marginRight: Spacing.sm,
+  },
+
+  // Empty day
+  emptyDay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  emptyDayText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    marginTop: 10,
+  },
+
+  // Shopping
+  shoppingCategory: {
+    backgroundColor: Colors.backgroundGradStart,
+    borderRadius: Radius.xl,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  shopCatHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomColor: 'rgba(255, 255, 255, 0.03)',
+    marginBottom: Spacing.sm,
+    paddingBottom: Spacing.sm,
+    borderBottomColor: Colors.cardBorder,
     borderBottomWidth: 1,
   },
-  shoppingItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  shoppingItemName: {
+  shopCatTitle: {
     color: Colors.text,
     fontSize: 14,
-    marginLeft: 10,
+    fontWeight: '700',
   },
-  shoppingItemChecked: {
-    color: Colors.textMuted,
+  shopCatCount: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    backgroundColor: Colors.primaryFaint,
+    borderRadius: Radius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  shoppingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomColor: Colors.cardBorder + '60',
+    borderBottomWidth: 1,
+    gap: 10,
+  },
+  shoppingName: {
+    color: Colors.text,
+    fontSize: 14,
+    flex: 1,
+  },
+  shoppingChecked: {
+    color: Colors.textTertiary,
     textDecorationLine: 'line-through',
   },
-  shoppingItemQty: {
+  shoppingQty: {
     color: Colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 13,
   },
-  emptyText: {
-    color: Colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-  },
 
-  // Modal Styles
-  modalBg: {
+  // Modal
+  modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    height: '80%',
+  modalSheet: {
+    backgroundColor: Colors.backgroundGradStart,
+    borderTopLeftRadius: Radius.xxl,
+    borderTopRightRadius: Radius.xxl,
+    height: '85%',
     borderColor: Colors.cardBorder,
     borderTopWidth: 1,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: Colors.cardBorder,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 4,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 10,
+    alignItems: 'flex-start',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderBottomColor: Colors.cardBorder,
     borderBottomWidth: 1,
   },
-  modalSubtitle: {
-    color: Colors.secondary,
+  modalCategory: {
+    color: Colors.primary,
+    fontSize: 12,
     fontWeight: '700',
-    fontSize: 13,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  modalScroll: {
-    padding: 24,
-    paddingBottom: 48,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
   modalTitle: {
     color: Colors.text,
     fontSize: 20,
     fontWeight: '800',
-    marginBottom: 16,
+    maxWidth: 260,
+  },
+  closeBtn: {
+    padding: 4,
+    marginTop: 2,
+  },
+  modalScroll: {
+    padding: Spacing.lg,
+    paddingBottom: 48,
   },
   metaRow: {
     flexDirection: 'row',
-    marginBottom: 20,
+    gap: 8,
+    marginBottom: Spacing.lg,
   },
-  metaItem: {
+  metaBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
     backgroundColor: Colors.cardBg,
-    borderRadius: 20,
+    borderRadius: Radius.full,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
+    gap: 5,
   },
-  metaLabel: {
+  metaText: {
     color: Colors.text,
     fontSize: 12,
-    marginLeft: 6,
     fontWeight: '600',
   },
-  subTitle: {
+  modalSectionTitle: {
     color: Colors.text,
     fontSize: 16,
     fontWeight: '700',
-    marginTop: 20,
-    marginBottom: 12,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.md,
   },
-  modalMacrosRow: {
+  macrosBox: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: Colors.cardBg,
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: Colors.cardElevated,
+    borderRadius: Radius.lg,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
-  macroItem: {
+  macroBox: {
     alignItems: 'center',
     flex: 1,
   },
-  macroItemValue: {
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '700',
+  macroBoxVal: {
+    fontSize: 22,
+    fontWeight: '800',
   },
-  macroItemLabel: {
-    color: Colors.textMuted,
+  macroBoxLabel: {
+    color: Colors.textSecondary,
     fontSize: 11,
-    marginTop: 4,
+    marginTop: 3,
+    fontWeight: '600',
   },
-  ingredientLine: {
+  ingredientRow: {
     flexDirection: 'row',
-    marginBottom: 6,
-    paddingHorizontal: 4,
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 10,
   },
-  bulletPoint: {
-    color: Colors.primary,
-    fontSize: 16,
-    marginRight: 8,
+  ingredientDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.primary,
+    flexShrink: 0,
   },
   ingredientText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
     flex: 1,
   },
-  stepContainer: {
+  stepRow: {
     flexDirection: 'row',
-    marginBottom: 14,
     alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+    gap: 12,
   },
-  stepNumCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.primary,
+  stepCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primaryFaint,
+    borderColor: Colors.primary + '40',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-    marginTop: 2,
+    flexShrink: 0,
+    marginTop: 1,
   },
-  stepNumText: {
-    color: Colors.text,
+  stepNum: {
+    color: Colors.primary,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   stepText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
     flex: 1,

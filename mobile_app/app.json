@@ -17,7 +17,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.elancil.mobile_app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -25,6 +26,12 @@
     "plugins": [
       "expo-router",
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "384663f6-ae83-4a8f-a59b-6b2eb27529e4"
+      }
+    }
   }
 }

@@ -1,24 +1,45 @@
+// NutriAI — Premium Dark Green Design System
+// Palette inspired by Whoop, Levels, and Zero health apps
+
 export const Colors = {
-  background: '#0a0a14',
-  backgroundGradStart: '#0f0f1a',
-  backgroundGradEnd: '#16213e',
-  
-  cardBg: 'rgba(255, 255, 255, 0.05)',
-  cardBorder: 'rgba(255, 255, 255, 0.08)',
-  
-  primary: '#6366f1', // Indigo
-  primaryDark: '#4f46e5',
-  secondary: '#a78bfa', // Light violet
-  accent: '#ec4899', // Pink (for active states/important metrics)
-  
-  success: '#10b981', // Green
-  warning: '#f59e0b', // Amber
-  danger: '#ef4444', // Red
-  
-  text: '#f3f4f6', // Light gray
-  textMuted: '#9ca3af', // Gray
-  textDark: '#111827',
-  
-  inputBg: 'rgba(255, 255, 255, 0.07)',
-  inputBorder: 'rgba(255, 255, 255, 0.15)',
+  // ─── Backgrounds ───────────────────────────────────────────────────────────
+  background: '#0A0A0F',          // Casi negro con toque azul
+  backgroundGradStart: '#141420', // Tarjetas base
+  backgroundGradEnd: '#1E1E2E',   // Tarjetas elevated / overlays
+
+  // ─── Cards ─────────────────────────────────────────────────────────────────
+  cardBg: 'rgba(255, 255, 255, 0.04)',
+  cardBorder: 'rgba(255, 255, 255, 0.07)',
+  cardElevated: '#1E1E2E',
+
+  // ─── Accent — Verde eléctrico principal ────────────────────────────────────
+  primary: '#00D084',             // Verde eléctrico vibrante
+  primaryDark: '#00A86B',         // Verde pressed / hover
+  primaryFaint: 'rgba(0, 208, 132, 0.12)', // Fondos de badges verdes
+
+  // ─── Secondary ─────────────────────────────────────────────────────────────
+  secondary: '#00D084',           // Alias del verde principal para compat
+  accent: '#00D084',              // Alias
+
+  // ─── Semáforo de macros ────────────────────────────────────────────────────
+  macroProtein: '#FF6B6B',        // Rojo coral — proteínas
+  macroCarbs: '#FFD93D',          // Amarillo — carbohidratos
+  macroFat: '#6BCB77',            // Verde suave — grasas
+  macroCal: '#00D084',            // Verde principal — calorías
+
+  // ─── Estados ───────────────────────────────────────────────────────────────
+  success: '#00D084',
+  warning: '#FFA502',
+  danger: '#FF4757',
+
+  // ─── Textos ────────────────────────────────────────────────────────────────
+  text: '#FFFFFF',
+  textSecondary: '#8B8FA8',       // Gris azulado
+  textMuted: '#8B8FA8',           // Alias para compatibilidad
+  textTertiary: '#4A4D6A',        // Para labels pequeños
+  textDark: '#000000',
+
+  // ─── Inputs ────────────────────────────────────────────────────────────────
+  inputBg: 'rgba(255, 255, 255, 0.06)',
+  inputBorder: 'rgba(255, 255, 255, 0.12)',
 };

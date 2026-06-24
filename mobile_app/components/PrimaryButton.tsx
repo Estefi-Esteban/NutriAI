@@ -23,7 +23,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({ title, loading, st
         style={styles.gradient}
       >
         {loading ? (
-          <ActivityIndicator color={Colors.text} size="small" />
+          <ActivityIndicator color="#000" size="small" />
         ) : (
           <Text style={styles.text}>{title}</Text>
         )}
@@ -40,16 +40,17 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   gradient: {
-    paddingVertical: 14,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
-    color: Colors.text,
+    color: '#000000',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   disabled: {
     opacity: 0.5,
   },
 });
+

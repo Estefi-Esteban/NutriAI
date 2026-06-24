@@ -12,11 +12,12 @@ export const GlassCard: React.FC<ViewProps> = ({ children, style, ...props }) =>
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.cardBg,
+    backgroundColor: Colors.backgroundGradStart,
     borderColor: Colors.cardBorder,
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 12,
   },
 });
+
