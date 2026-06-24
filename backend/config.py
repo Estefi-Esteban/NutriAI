@@ -5,7 +5,10 @@ load_dotenv()
 
 groq_api_key = os.getenv("GROQ_API_KEY")
 database_url = os.getenv("DATABASE_URL")
-chroma_path = os.getenv("CHROMA_PATH")
+
+# RAG vectorial — Qdrant Cloud
+qdrant_url = os.getenv("QDRANT_URL")
+qdrant_api_key = os.getenv("QDRANT_API_KEY")
 
 # Seguridad y Autenticación
 jwt_secret_key = os.getenv("JWT_SECRET_KEY")
@@ -15,4 +18,5 @@ google_client_id = os.getenv("GOOGLE_CLIENT_ID")
 
 # Tesseract path config
 TESSERACT_PATH = os.getenv("TESSERACT_PATH")
-GROQ_API_KEY = groq_api_key
+GROQ_API_KEY = groq_api_key
+

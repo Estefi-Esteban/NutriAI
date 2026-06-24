@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 
 from backend.api.schemas.auth_schema import RegistroRequest, LoginRequest, GoogleLoginRequest, TokenResponse
@@ -10,6 +10,11 @@ from backend.utils.security import (
     verificar_password,
     crear_token_acceso,
     verificar_google_token,
+)
+from backend.api.rate_limiter import (
+    check_failed_login,
+    add_failed_attempt,
+    reset_failed_attempts,
 )
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
@@ -55,10 +60,16 @@ def registro(payload: RegistroRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     """Inicia sesión con email y contraseña."""
+    ip = request.client.host if request.client else "127.0.0.1"
+    
+    # Verificar si está bloqueado por rate limit
+    check_failed_login(ip, payload.email)
+    
     usuario = db.query(User).filter(User.email == payload.email).first()
     if not usuario or usuario.auth_provider != "email":
+        add_failed_attempt(ip, payload.email)
         raise HTTPException(
             status_code=400,
             detail="Credenciales incorrectas o el usuario inició sesión con otro proveedor"
@@ -66,10 +77,14 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
     # Verificar contraseña
     if not verificar_password(payload.password, usuario.password_hash):
+        add_failed_attempt(ip, payload.email)
         raise HTTPException(
             status_code=400,
             detail="Credenciales incorrectas"
         )
+
+    # Login exitoso, resetear intentos fallidos
+    reset_failed_attempts(ip, payload.email)
 
     # Generar token
     access_token = crear_token_acceso(subject=usuario.id)

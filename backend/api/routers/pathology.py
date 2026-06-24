@@ -5,6 +5,7 @@ from backend.api.schemas.pathology_schema import (
     AnalizarPatologiasRequest, ProtocoloResponse
 )
 from backend.api.dependencies import get_current_user, get_db
+from backend.api.rate_limiter import limitar_peticiones_ia
 from backend.agents.pathology_agent import PathologyAgent
 from backend.database.repositories.protocol_repository import (
     guardar_protocolo, obtener_protocolo
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/patologias", tags=["Patologías"])
 @router.post("/analizar", response_model=ProtocoloResponse)
 def analizar_patologias(
     payload: AnalizarPatologiasRequest,
-    current_user = Depends(get_current_user),
+    current_user = Depends(limitar_peticiones_ia),
     db: Session = Depends(get_db),
 ):
     """

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from backend.api.schemas.vision_schema import AnalisisVisualResponse
 from backend.api.dependencies import get_current_user, get_db
+from backend.api.rate_limiter import limitar_peticiones_ia
 from backend.agents.vision_agent import VisionAgent
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ def _validar_imagen(archivo: UploadFile) -> str:
 @router.post("/analizar-plato", response_model=AnalisisVisualResponse)
 async def analizar_plato(
     foto: UploadFile = File(..., description="Foto del plato (jpg, png o webp, máx 10MB)"),
-    current_user=Depends(get_current_user),
+    current_user=Depends(limitar_peticiones_ia),
 ):
     """
     Analiza una foto de un plato de comida y devuelve:
@@ -100,7 +101,7 @@ async def analizar_plato(
 async def analizar_y_registrar(
     foto: UploadFile = File(..., description="Foto del plato (jpg, png o webp, máx 10MB)"),
     comida: str = "almuerzo",   # query param opcional
-    current_user=Depends(get_current_user),
+    current_user=Depends(limitar_peticiones_ia),
     db: Session = Depends(get_db),
 ):
     """

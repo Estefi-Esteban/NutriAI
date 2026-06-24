@@ -8,6 +8,7 @@ from backend.api.schemas.clinical_schema import (
     SubirAnaliticaRequest, AnalisisClinicoResponse
 )
 from backend.api.dependencies import get_current_user, get_db
+from backend.api.rate_limiter import limitar_peticiones_ia
 from backend.database.models import UserProfile
 from backend.agents.clinical_agent import ClinicalAgent
 from backend.utils.pdf_extractor import extraer_texto_analitica, parsear_valores_analitica
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/analitica", tags=["Analítica Clínica"])
 @router.post("/subir-archivo", response_model=AnalisisClinicoResponse)
 async def analizar_archivo(
     archivo: UploadFile = File(...),
-    current_user = Depends(get_current_user),
+    current_user = Depends(limitar_peticiones_ia),
     db: Session = Depends(get_db),
 ):
     """
@@ -87,7 +88,7 @@ async def analizar_archivo(
 @router.post("/manual", response_model=AnalisisClinicoResponse)
 def analizar_manual(
     payload: SubirAnaliticaRequest,
-    current_user = Depends(get_current_user),
+    current_user = Depends(limitar_peticiones_ia),
     db: Session = Depends(get_db),
 ):
     """

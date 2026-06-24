@@ -3,43 +3,44 @@
 
 export const Colors = {
   // ─── Backgrounds ───────────────────────────────────────────────────────────
-  background: '#0A0A0F',          // Casi negro con toque azul
-  backgroundGradStart: '#141420', // Tarjetas base
-  backgroundGradEnd: '#1E1E2E',   // Tarjetas elevated / overlays
+  background: '#F8FAF5',          // Blanco con toque verde muy sutil
+  backgroundGradStart: '#FFFFFF', // Tarjetas base
+  backgroundGradEnd: '#F0F4EE',   // Tarjetas elevated / overlays
 
   // ─── Cards ─────────────────────────────────────────────────────────────────
-  cardBg: 'rgba(255, 255, 255, 0.04)',
-  cardBorder: 'rgba(255, 255, 255, 0.07)',
-  cardElevated: '#1E1E2E',
+  cardBg: '#FFFFFF',
+  cardBorder: '#E5E7EB',
+  cardElevated: '#FFFFFF',
 
-  // ─── Accent — Verde eléctrico principal ────────────────────────────────────
-  primary: '#00D084',             // Verde eléctrico vibrante
-  primaryDark: '#00A86B',         // Verde pressed / hover
-  primaryFaint: 'rgba(0, 208, 132, 0.12)', // Fondos de badges verdes
+  // ─── Accent — Verde natural principal ──────────────────────────────────────
+  primary: '#2D6A4F',             // Verde oscuro natural
+  primaryDark: '#1B4F3B',         // Verde pressed / hover
+  primaryFaint: '#D8F3DC',        // Fondos de badges verdes (Verde suave)
 
   // ─── Secondary ─────────────────────────────────────────────────────────────
-  secondary: '#00D084',           // Alias del verde principal para compat
-  accent: '#00D084',              // Alias
+  secondary: '#52B788',           // Verde acento (botones)
+  accent: '#52B788',              // Verde acento (botones)
 
   // ─── Semáforo de macros ────────────────────────────────────────────────────
-  macroProtein: '#FF6B6B',        // Rojo coral — proteínas
-  macroCarbs: '#FFD93D',          // Amarillo — carbohidratos
-  macroFat: '#6BCB77',            // Verde suave — grasas
-  macroCal: '#00D084',            // Verde principal — calorías
+  macroProtein: '#4CC9F0',        // Azul tranquilo — proteínas
+  macroCarbs: '#F9C74F',          // Amarillo suave — carbohidratos
+  macroFat: '#F4845F',            // Naranja cálido — grasas
+  macroCal: '#2D6A4F',            // Verde principal — calorías
 
   // ─── Estados ───────────────────────────────────────────────────────────────
-  success: '#00D084',
+  success: '#2D6A4F',
   warning: '#FFA502',
   danger: '#FF4757',
 
   // ─── Textos ────────────────────────────────────────────────────────────────
-  text: '#FFFFFF',
-  textSecondary: '#8B8FA8',       // Gris azulado
-  textMuted: '#8B8FA8',           // Alias para compatibilidad
-  textTertiary: '#4A4D6A',        // Para labels pequeños
-  textDark: '#000000',
+  text: '#1A1A2E',                // Casi negro, no negro puro
+  textSecondary: '#6B7280',       // Gris medio
+  textMuted: '#9CA3AF',           // Gris claro
+  textTertiary: '#9CA3AF',        // Para labels pequeños
+  textDark: '#1A1A2E',
 
   // ─── Inputs ────────────────────────────────────────────────────────────────
-  inputBg: 'rgba(255, 255, 255, 0.06)',
-  inputBorder: 'rgba(255, 255, 255, 0.12)',
+  inputBg: '#FFFFFF',
+  inputBorder: '#E5E7EB',
 };
+

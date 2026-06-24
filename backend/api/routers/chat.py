@@ -11,13 +11,14 @@ from backend.api.dependencies import (
     eliminar_sesion_chat,
     get_current_user,
 )
+from backend.api.rate_limiter import limitar_peticiones_ia
 from backend.database.models import User
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
 
 @router.post("/iniciar", response_model=IniciarChatResponse)
-def iniciar_chat(current_user: User = Depends(get_current_user)):
+def iniciar_chat(current_user: User = Depends(limitar_peticiones_ia)):
     """
     Inicia una nueva conversación con el Agente Perfil para el usuario autenticado.
     Devuelve un session_id (que es el ID del usuario como string).
@@ -34,7 +35,7 @@ def iniciar_chat(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/mensaje", response_model=MensajeChatResponse)
-def enviar_mensaje(payload: MensajeChatRequest, current_user: User = Depends(get_current_user)):
+def enviar_mensaje(payload: MensajeChatRequest, current_user: User = Depends(limitar_peticiones_ia)):
     """
     Envía un mensaje a la sesión de chat activa del usuario autenticado.
     Cuando el perfil queda completo, la respuesta incluye

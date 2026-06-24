@@ -12,6 +12,7 @@ export default function ClinicalScreen() {
   const [activeTab, setActiveTab] = useState<'manual' | 'upload'>('manual');
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<any>(null);
+  const [consentAccepted, setConsentAccepted] = useState(false);
   
   // Manual Input States
   const [glucosa, setGlucosa] = useState('');
@@ -91,6 +92,33 @@ export default function ClinicalScreen() {
       setLoading(false);
     }
   };
+
+  if (!consentAccepted) {
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <GlassCard style={styles.consentCard}>
+          <View style={styles.consentIconWrap}>
+            <Ionicons name="lock-closed-outline" size={48} color={Colors.primary} />
+          </View>
+          <Text style={styles.consentTitle}>Privacidad de Datos Clínicos</Text>
+          <Text style={styles.consentDescription}>
+            Los datos de tu analítica de sangre se procesan de forma estrictamente confidencial.
+          </Text>
+          <Text style={styles.consentDescription}>
+            Se utilizan exclusivamente para ajustar y personalizar tus requerimientos de nutrientes y alertas en la app. No se comparten con terceros, no se venden, ni se usan para ningún otro fin.
+          </Text>
+          <Text style={[styles.consentDescription, { fontWeight: '700' }]}>
+            Nota: La imagen original de tu analítica no se almacena en nuestros servidores tras extraer los valores.
+          </Text>
+
+          <PrimaryButton 
+            title="Acepto subir mis datos" 
+            onPress={() => setConsentAccepted(true)} 
+          />
+        </GlassCard>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -348,4 +376,27 @@ const styles = StyleSheet.create({
   },
   statusNormal: { backgroundColor: Colors.success },
   statusElevado: { backgroundColor: Colors.warning },
+  consentCard: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  consentIconWrap: {
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  consentTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  consentDescription: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 14,
+    textAlign: 'center',
+  },
 });

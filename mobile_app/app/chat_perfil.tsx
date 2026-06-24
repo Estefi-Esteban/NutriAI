@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { api } from '../services/api';
 import { GlassCard } from '../components/GlassCard';
+import { Ionicons } from '@expo/vector-icons';
+import { PrimaryButton } from '../components/PrimaryButton';
 
 interface Message {
   role: 'user' | 'ai';
@@ -20,7 +22,12 @@ export default function ChatPerfilScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const router = useRouter();
 
+  // Disclaimer Acceptance state
+  const [disclaimerAceptado, setDisclaimerAceptado] = useState(false);
+
   useEffect(() => {
+    if (!disclaimerAceptado) return;
+
     // Start chat session with ProfileAgent
     const startSession = async () => {
       setLoading(true);
@@ -34,7 +41,48 @@ export default function ChatPerfilScreen() {
       }
     };
     startSession();
-  }, []);
+  }, [disclaimerAceptado]);
+
+  if (!disclaimerAceptado) {
+    return (
+      <View style={styles.disclaimerContainer}>
+        <GlassCard style={styles.disclaimerCard}>
+          <View style={styles.disclaimerIconWrap}>
+            <Ionicons name="shield-checkmark-outline" size={48} color={Colors.primary} />
+          </View>
+          <Text style={styles.disclaimerTitle}>Aviso y Deslinde Médico</Text>
+          
+          <ScrollView style={styles.disclaimerTextScroll} showsVerticalScrollIndicator={false}>
+            <Text style={styles.disclaimerText}>
+              NutriAI es una herramienta de apoyo nutricional y un asistente inteligente basado en Inteligencia Artificial.
+            </Text>
+            <Text style={styles.disclaimerText}>
+              La información, menús, planes y sugerencias de suplementación proporcionados por esta aplicación se ofrecen exclusivamente con fines educativos y de bienestar general.
+            </Text>
+            <Text style={[styles.disclaimerText, { fontWeight: '700' }]}>
+              No constituyen, ni sustituyen en ningún caso, un diagnóstico, asesoramiento o tratamiento médico profesional.
+            </Text>
+            <Text style={styles.disclaimerText}>
+              Antes de realizar cambios significativos en tu alimentación, entrenamiento o estilo de vida, o si padeces alguna condición médica preexistente (como diabetes, hipertensión o trastornos tiroideos), consulta siempre con un médico de cabecera o un dietista-nutricionista titulado.
+            </Text>
+          </ScrollView>
+
+          <PrimaryButton 
+            title="Entendido y acepto continuar" 
+            onPress={() => setDisclaimerAceptado(true)} 
+          />
+          
+          <TouchableOpacity 
+            style={styles.disclaimerCancelBtn} 
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.disclaimerCancelText}>Cancelar y Volver</Text>
+          </TouchableOpacity>
+        </GlassCard>
+      </View>
+    );
+  }
 
   const handleSend = async () => {
     if (!inputValue.trim() || loading) return;
@@ -162,7 +210,7 @@ export default function ChatPerfilScreen() {
               value={inputValue}
               onChangeText={setInputValue}
               onSubmitEditing={handleSend}
-              disabled={loading}
+              editable={!loading}
             />
             <TouchableOpacity onPress={handleSend} style={styles.sendBtn} disabled={loading}>
               <Text style={styles.sendBtnText}>Enviar</Text>
@@ -286,5 +334,46 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     backgroundColor: Colors.primary,
+  },
+  disclaimerContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  disclaimerCard: {
+    paddingVertical: 24,
+    maxHeight: '90%',
+  },
+  disclaimerIconWrap: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  disclaimerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  disclaimerTextScroll: {
+    marginBottom: 20,
+  },
+  disclaimerText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  disclaimerCancelBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  disclaimerCancelText: {
+    color: Colors.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

@@ -61,16 +61,16 @@ export const Shadows = {
   card: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   glow: {
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
   },
 };
 
@@ -122,7 +122,7 @@ export const Theme = StyleSheet.create({
     flexDirection: 'row' as const,
   },
   btnPrimaryText: {
-    color: '#000',
+    color: '#FFFFFF',
     fontWeight: '800' as const,
     fontSize: 15,
     letterSpacing: 0.2,

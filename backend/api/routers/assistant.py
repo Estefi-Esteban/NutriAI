@@ -4,6 +4,7 @@ from backend.api.schemas.assistant_schema import (
     MensajeRequest, MensajeResponse, HistorialResponse, MensajeHistorial
 )
 from backend.api.dependencies import get_current_user
+from backend.api.rate_limiter import limitar_peticiones_ia
 from backend.agents.assistant_agent import AssistantAgent
 from backend.database.connection import SessionLocal
 from backend.database.repositories.user_repository import obtener_perfil
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/asistente", tags=["Asistente General"])
 @router.post("/mensaje", response_model=MensajeResponse)
 def enviar_mensaje(
     payload: MensajeRequest,
-    current_user = Depends(get_current_user),
+    current_user = Depends(limitar_peticiones_ia),
 ):
     """
     Envía un mensaje al asistente nutricional personal.

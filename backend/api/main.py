@@ -46,3 +46,15 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/health/rag")
+def health_rag():
+    """
+    Endpoint de diagnóstico del RAG.
+    Úsalo para verificar que Qdrant Cloud está conectado y con datos.
+    Ejemplo: GET https://tu-backend.railway.app/health/rag
+    """
+    from backend.rag.food_search import estado_rag
+    return estado_rag()
+

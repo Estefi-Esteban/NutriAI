@@ -18,6 +18,7 @@ from backend.api.schemas.supplement_schema import (
     RecomendacionResponse,
 )
 from backend.api.dependencies import get_current_user
+from backend.api.rate_limiter import limitar_peticiones_ia
 from backend.agents.supplement_agent import SupplementAgent
 from backend.database.connection import SessionLocal
 from backend.database.repositories.user_repository import obtener_perfil
@@ -53,7 +54,7 @@ def _perfil_a_dict(perfil, user=None) -> dict:
 @router.post("/generar", response_model=RecomendacionResponse)
 def generar_recomendacion(
     payload: RecomendacionRequest,
-    current_user=Depends(get_current_user),
+    current_user=Depends(limitar_peticiones_ia),
 ):
     """
     Genera recomendaciones de suplementación personalizadas.

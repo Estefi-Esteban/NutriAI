@@ -7,6 +7,7 @@ from backend.api.schemas.plan_schema import (
     PlanCompletoResponse,
 )
 from backend.api.dependencies import crear_tarea_plan, obtener_tarea_plan, get_current_user
+from backend.api.rate_limiter import limitar_peticiones_ia
 from backend.api.services.plan_service import generar_plan_background
 from backend.database.connection import SessionLocal
 from backend.database.repositories.plan_repository import obtener_plan_activo
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/planes", tags=["Planes"])
 def generar_plan(
     payload: GenerarPlanRequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(limitar_peticiones_ia)
 ):
     """
     Lanza la generación de un plan completo en segundo plano para el usuario autenticado.
