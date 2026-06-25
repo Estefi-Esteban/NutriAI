@@ -51,7 +51,7 @@ class AssistantAgent:
         Returns:
             La respuesta del asistente como string
         """
-        system_prompt = self._construir_system_prompt(perfil, plan_activo, protocolo)
+        system_prompt = self._construir_system_prompt(perfil, plan_activo, protocolo, mensaje_usuario)
         mensajes = self._construir_mensajes(system_prompt, historial, mensaje_usuario)
 
         logger.info(
@@ -68,8 +68,34 @@ class AssistantAgent:
         perfil: dict,
         plan_activo: dict | None,
         protocolo: dict | None,
+        mensaje_usuario: str = "",
     ) -> str:
         """Rellena el template del prompt con los datos reales del usuario."""
+
+        # Buscar evidencia en Qdrant
+        from backend.rag.clinical_knowledge_search import buscar_evidencia
+
+        query_parts = []
+        obj = perfil.get("objetivo_principal")
+        if obj:
+            query_parts.append(str(obj))
+        pats = perfil.get("patologias")
+        if pats:
+            query_parts.extend([str(p) for p in pats])
+        
+        if mensaje_usuario:
+            query_parts.append(mensaje_usuario)
+
+        query_rag = " ".join(query_parts) if query_parts else "nutrition clinical health guidelines"
+
+        evidencia = buscar_evidencia(query_rag, n_resultados=3)
+        if evidencia:
+            evidencia_texto = "\n\n".join([
+                f"--- DOCUMENTO: {e['titulo']} ({e['año']}) ---\nFuente: {e['fuente']} (Tipo: {e['tipo']})\nTexto: {e['texto']}"
+                for e in evidencia
+            ])
+        else:
+            evidencia_texto = "No se encontró evidencia específica en la base de datos."
 
         restricciones = ""
         if protocolo and protocolo.get("notas_dietista"):
@@ -104,6 +130,7 @@ class AssistantAgent:
             carbos_g=carbos,
             grasas_g=grasas,
             restricciones_activas=restricciones,
+            evidencia_cientifica=evidencia_texto,
         )
 
     def _construir_mensajes(

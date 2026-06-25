@@ -62,8 +62,34 @@ class ClinicalAgent:
             "rangos": RANGOS_REFERENCIA,
         }
 
+        # Buscar evidencia en Qdrant
+        from backend.rag.clinical_knowledge_search import buscar_evidencia
+
+        query_parts = []
+        obj = perfil.get("objetivo_principal")
+        if obj:
+            query_parts.append(str(obj))
+        pats = perfil.get("patologias")
+        if pats:
+            query_parts.extend([str(p) for p in pats])
+        if valores:
+            query_parts.extend(list(valores.keys()))
+        
+        query_rag = " ".join(query_parts) if query_parts else "blood test clinical markers guidelines"
+        
+        evidencia = buscar_evidencia(query_rag, n_resultados=3)
+        if evidencia:
+            evidencia_texto = "\n\n".join([
+                f"--- DOCUMENTO: {e['titulo']} ({e['año']}) ---\nFuente: {e['fuente']} (Tipo: {e['tipo']})\nTexto: {e['texto']}"
+                for e in evidencia
+            ])
+        else:
+            evidencia_texto = "No se encontró evidencia específica en la base de datos."
+
+        system_prompt = self.system_prompt.replace("{evidencia_cientifica}", evidencia_texto)
+
         mensajes = [
-            SystemMessage(content=self.system_prompt),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=json.dumps(entrada, ensure_ascii=False, indent=2)),
         ]
 

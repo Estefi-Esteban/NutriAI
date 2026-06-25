@@ -19,4 +19,9 @@ google_client_id = os.getenv("GOOGLE_CLIENT_ID")
 # Tesseract path config
 TESSERACT_PATH = os.getenv("TESSERACT_PATH")
 GROQ_API_KEY = groq_api_key
+
+# PubMed API Key
+PUBMED_API_KEY = os.getenv("PUBMED_API_KEY")
+pubmed_api_key = PUBMED_API_KEY
+
 

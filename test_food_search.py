@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from backend.rag.food_search import buscar_alimento, buscar_mejor_match
 
 

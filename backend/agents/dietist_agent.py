@@ -115,6 +115,30 @@ class DietistAgent:
         # Enriquecemos calculos con la distribución calórica en kcal por comida
         calculos_enriquecidos = self._calcular_distribucion_kcal(calculos, analisis)
 
+        # Buscar evidencia en Qdrant
+        from backend.rag.clinical_knowledge_search import buscar_evidencia
+
+        query_parts = []
+        obj = perfil.get("objetivo_principal")
+        if obj:
+            query_parts.append(str(obj))
+        pats = perfil.get("patologias")
+        if pats:
+            query_parts.extend([str(p) for p in pats])
+        
+        query_rag = " ".join(query_parts) if query_parts else "nutrition diet healthy meals"
+        
+        evidencia = buscar_evidencia(query_rag, n_resultados=3)
+        if evidencia:
+            evidencia_texto = "\n\n".join([
+                f"--- DOCUMENTO: {e['titulo']} ({e['año']}) ---\nFuente: {e['fuente']} (Tipo: {e['tipo']})\nTexto: {e['texto']}"
+                for e in evidencia
+            ])
+        else:
+            evidencia_texto = "No se encontró evidencia específica en la base de datos."
+
+        system_prompt = self.system_prompt.replace("{evidencia_cientifica}", evidencia_texto)
+
         mensaje_usuario = self._construir_mensaje(
             perfil=perfil,
             calculos=calculos_enriquecidos,
@@ -123,7 +147,7 @@ class DietistAgent:
             comidas_previas=comidas_previas or [],
         )
 
-        texto_respuesta = self._llamar_groq(mensaje_usuario, dia_semana)
+        texto_respuesta = self._llamar_groq(mensaje_usuario, dia_semana, system_prompt)
         menu_dia = self._parsear_respuesta(texto_respuesta, dia_semana)
 
         # Corrección RAG — reemplaza estimaciones del LLM con datos reales de ChromaDB
@@ -211,10 +235,10 @@ class DietistAgent:
         return json.dumps(entrada, ensure_ascii=False, indent=2)
 
     @reintentar_llamada_llm(max_intentos=3, retardo_inicial=15.0, backoff=1.5)
-    def _llamar_groq(self, mensaje_usuario: str, dia_semana: str) -> str:
+    def _llamar_groq(self, mensaje_usuario: str, dia_semana: str, system_prompt: str) -> str:
         """Hace la llamada a Groq y devuelve el texto de la respuesta."""
         mensajes = [
-            SystemMessage(content=self.system_prompt),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=mensaje_usuario),
         ]
 

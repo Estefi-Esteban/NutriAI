@@ -118,12 +118,13 @@ def buscar_alimento(query: str, n_resultados: int = 3) -> list[dict]:
     try:
         # _modelo.embed devuelve un generador, tomamos la primera predicción
         vector = list(_modelo.embed([query]))[0].tolist()
-        resultados = _cliente.search(           # type: ignore[union-attr]
+        resultados_response = _cliente.query_points(           # type: ignore[union-attr]
             collection_name=COLECCION,
-            query_vector=vector,
+            query=vector,
             limit=n_resultados,
             score_threshold=0.0,                # devolvemos todos y filtramos manualmente
         )
+        resultados = resultados_response.points
 
         salida = []
         for r in resultados:

@@ -85,8 +85,33 @@ class NutritionAgent:
             ValueError: Si la respuesta del modelo no contiene JSON parseable.
             RuntimeError: Si la llamada a la API de Groq falla.
         """
+        from backend.rag.clinical_knowledge_search import buscar_evidencia
+
+        # Buscar evidencia en Qdrant
+        query_parts = []
+        obj = perfil.get("objetivo_principal")
+        if obj:
+            query_parts.append(str(obj))
+        pats = perfil.get("patologias")
+        if pats:
+            query_parts.extend([str(p) for p in pats])
+        
+        query_rag = " ".join(query_parts) if query_parts else "nutrition healthy guidelines"
+        
+        evidencia = buscar_evidencia(query_rag, n_resultados=3)
+        if evidencia:
+            evidencia_texto = "\n\n".join([
+                f"--- DOCUMENTO: {e['titulo']} ({e['año']}) ---\nFuente: {e['fuente']} (Tipo: {e['tipo']})\nTexto: {e['texto']}"
+                for e in evidencia
+            ])
+        else:
+            evidencia_texto = "No se encontró evidencia específica en la base de datos."
+
+        # Reemplazar placeholder en el prompt del sistema
+        system_prompt = self.system_prompt.replace("{evidencia_cientifica}", evidencia_texto)
+
         mensaje_usuario = self._construir_mensaje(perfil, calculos)
-        texto_respuesta = self._llamar_groq(mensaje_usuario)
+        texto_respuesta = self._llamar_groq(mensaje_usuario, system_prompt)
         return self._parsear_respuesta(texto_respuesta)
 
     # ------------------------------------------------------------------
@@ -102,10 +127,10 @@ class NutritionAgent:
         return json.dumps(entrada, ensure_ascii=False, indent=2)
 
     @reintentar_llamada_llm(max_intentos=3, retardo_inicial=15.0, backoff=1.5)
-    def _llamar_groq(self, mensaje_usuario: str) -> str:
+    def _llamar_groq(self, mensaje_usuario: str, system_prompt: str) -> str:
         """Hace la llamada a Groq y devuelve el texto de la respuesta."""
         mensajes = [
-            SystemMessage(content=self.system_prompt),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=mensaje_usuario),
         ]
 
