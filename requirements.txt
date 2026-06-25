@@ -41,3 +41,6 @@ email-validator
 pytest 
 pytest-asyncio
 
+# Reportes
+reportlab
+
