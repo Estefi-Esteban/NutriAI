@@ -164,7 +164,7 @@ export default function DashboardScreen() {
 
         {/* Onboarding CTA */}
         <LinearGradient
-          colors={['#1A2E1A', '#0A1F0F']}
+          colors={['#F0F4EE', '#D8F3DC']}
           style={styles.ctaCard}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -182,12 +182,12 @@ export default function DashboardScreen() {
             activeOpacity={0.85}
           >
             <LinearGradient
-              colors={[Colors.primary, Colors.primaryDark]}
+              colors={['#52B788', '#2D6A4F']}
               style={styles.ctaBtnInner}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Ionicons name="sparkles" size={18} color="#000" style={{ marginRight: 8 }} />
+              <Ionicons name="sparkles" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
               <Text style={styles.ctaBtnText}>Empezar Onboarding</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -324,7 +324,7 @@ export default function DashboardScreen() {
           onPress={() => router.push('/chat_perfil')}
           activeOpacity={0.8}
         >
-          <Ionicons name="refresh-circle-outline" size={20} color={Colors.textSecondary} />
+          <Ionicons name="refresh-circle-outline" size={20} color="#6B7280" />
           <Text style={styles.quickActionText}>Re-hacer onboarding</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.quickActionDanger} onPress={signOut} activeOpacity={0.8}>
@@ -339,7 +339,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F8FAF5',
     padding: Spacing.md,
     paddingBottom: 48,
   },
@@ -358,13 +358,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   greeting: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#1A1A2E',
   },
   dateText: {
     fontSize: 13,
-    color: Colors.textSecondary,
+    color: '#6B7280',
     marginTop: 2,
     textTransform: 'capitalize',
   },
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   ctaTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#1A1A2E',
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   ctaBtnText: {
-    color: '#000',
+    color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 16,
   },
@@ -420,9 +420,9 @@ const styles = StyleSheet.create({
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.backgroundGradStart,
+    backgroundColor: '#FFFFFF',
     borderRadius: Radius.lg,
-    borderColor: Colors.cardBorder,
+    borderColor: '#E5E7EB',
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#1A1A2E',
   },
   featureSub: {
     fontSize: 12,
@@ -461,9 +461,9 @@ const styles = StyleSheet.create({
 
   // ── Dashboard Cards ────────────────────────────────────────────────────────
   card: {
-    backgroundColor: Colors.backgroundGradStart,
+    backgroundColor: '#FFFFFF',
     borderRadius: Radius.xl,
-    borderColor: Colors.cardBorder,
+    borderColor: '#E5E7EB',
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
   calBig: {
     fontSize: 48,
     fontWeight: '900',
-    color: Colors.text,
+    color: '#1A1A2E',
     letterSpacing: -1,
   },
   calBigLabel: {
@@ -519,14 +519,14 @@ const styles = StyleSheet.create({
   },
   calDivider: {
     height: 1,
-    backgroundColor: Colors.cardBorder,
+    backgroundColor: '#E5E7EB',
     marginBottom: Spacing.sm,
     width: '60%',
   },
   calRemaining: {
     fontSize: 24,
     fontWeight: '800',
-    color: Colors.primary,
+    color: '#2D6A4F',
   },
   calRemainingLabel: {
     fontSize: 12,
@@ -540,10 +540,10 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: Colors.cardElevated,
+    backgroundColor: '#F0F4EE',
     alignItems: 'center',
     justifyContent: 'center',
-    borderColor: Colors.primary + '50',
+    borderColor: '#2D6A4F50',
     borderWidth: 3,
   },
   ringArc: {
@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
   ringPct: {
     fontSize: 22,
     fontWeight: '900',
-    color: Colors.primary,
+    color: '#2D6A4F',
   },
   ringPctLabel: {
     fontSize: 9,
@@ -585,9 +585,9 @@ const styles = StyleSheet.create({
   },
   macroCard: {
     flex: 1,
-    backgroundColor: Colors.backgroundGradStart,
+    backgroundColor: '#FFFFFF',
     borderRadius: Radius.lg,
-    borderColor: Colors.cardBorder,
+    borderColor: '#E5E7EB',
     borderWidth: 1,
     padding: 12,
     alignItems: 'center',
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
   macroBar: {
     width: '100%',
     height: 3,
-    backgroundColor: Colors.inputBg,
+    backgroundColor: '#F0F4EE',
     borderRadius: 2,
     marginTop: 6,
     overflow: 'hidden',
@@ -673,12 +673,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.textSecondary,
+    color: '#6B7280',
     marginTop: 8,
   },
   emptySubtitle: {
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: '#9CA3AF',
     textAlign: 'center',
     marginTop: 4,
     lineHeight: 17,
@@ -691,11 +691,11 @@ const styles = StyleSheet.create({
   },
   weightInput: {
     flex: 1,
-    backgroundColor: Colors.inputBg,
-    borderColor: Colors.inputBorder,
+    backgroundColor: '#F8FAF5',
+    borderColor: '#E5E7EB',
     borderWidth: 1,
     borderRadius: Radius.md,
-    color: Colors.text,
+    color: '#1A1A2E',
     paddingHorizontal: Spacing.md,
     paddingVertical: 11,
     fontSize: 15,
@@ -707,7 +707,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
   weightBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: '#52B788',
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 12,
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   weightBtnText: {
-    color: '#000',
+    color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 13,
   },
@@ -731,15 +731,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.cardBg,
-    borderColor: Colors.cardBorder,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
     borderWidth: 1,
     borderRadius: Radius.md,
     paddingVertical: 12,
     gap: 6,
   },
   quickActionText: {
-    color: Colors.textSecondary,
+    color: '#6B7280',
     fontSize: 12,
     fontWeight: '600',
   },

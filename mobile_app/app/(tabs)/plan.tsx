@@ -412,8 +412,8 @@ const styles = StyleSheet.create({
   },
   dayBadge: {
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
-    borderColor: Colors.cardBorder,
+    backgroundColor: '#F0F4EE',
+    borderColor: '#E5E7EB',
     borderWidth: 1,
     borderRadius: Radius.lg,
     paddingHorizontal: 14,
@@ -421,8 +421,8 @@ const styles = StyleSheet.create({
     minWidth: 52,
   },
   dayBadgeActive: {
-    backgroundColor: Colors.primaryFaint,
-    borderColor: Colors.primary + '60',
+    backgroundColor: '#D8F3DC',
+    borderColor: '#52B788',
   },
   dayBadgeShort: {
     color: Colors.textSecondary,
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
   metaBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
+    backgroundColor: '#F0F4EE',
     borderRadius: Radius.full,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -672,9 +672,8 @@ const styles = StyleSheet.create({
   macrosBox: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: Colors.cardElevated,
-    borderRadius: Radius.lg,
-    borderColor: Colors.cardBorder,
+    backgroundColor: '#F8FAF5',
+    borderColor: '#E5E7EB',
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
