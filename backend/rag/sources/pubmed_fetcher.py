@@ -51,6 +51,28 @@ TERMINOS_BUSQUEDA = [
     "creatine supplementation resistance training",
     "protein supplementation muscle synthesis",
     "omega-3 supplementation cardiovascular",
+
+    # Términos nuevos añadidos para ampliar a 500+ artículos
+    "gut microbiome diet nutrition",
+    "sleep quality nutrition diet",
+    "anti inflammatory diet chronic disease",
+    "zinc deficiency immune function",
+    "selenium thyroid function diet",
+    "probiotics digestive health evidence",
+    "fiber intake cardiovascular disease",
+    "antioxidants diet prevention",
+    "intermittent fasting metabolic health",
+    "muscle protein synthesis leucine",
+    "omega 3 brain health cognition",
+    "calcium bone density osteoporosis diet",
+    "hydration athletes performance",
+    "weight loss plateau caloric adaptation",
+    "emotional eating psychology nutrition",
+    "menstrual cycle nutrition iron",
+    "pregnancy nutrition requirements",
+    "elderly nutrition sarcopenia",
+    "children adolescents nutrition growth",
+    "vegan diet complete protein sources",
 ]
 
 

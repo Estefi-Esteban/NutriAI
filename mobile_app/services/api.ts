@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 
 // Base URL configuration
 // Note: Use 'http://10.0.2.2:8000' for Android Emulator, or your local machine IP for physical devices.
@@ -260,6 +261,36 @@ export const api = {
     return request<any>('/seguimiento/peso', {
       method: 'POST',
       body: JSON.stringify({ peso_kg: pesoKg }),
+    });
+  },
+
+  descargarInformePDF: async (): Promise<string> => {
+    const token = await AsyncStorage.getItem('user_token');
+    const response = await fetch(`${BASE_URL}/planes/reporte`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('No se pudo descargar el informe');
+    }
+
+    const blob = await response.blob();
+    const reader = new FileReader();
+
+    return new Promise((resolve, reject) => {
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        const fileUri = FileSystem.cacheDirectory + 'informe_nutriai.pdf';
+        await FileSystem.writeAsStringAsync(fileUri, base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        resolve(fileUri);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
   },
 };

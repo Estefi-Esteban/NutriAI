@@ -34,7 +34,7 @@ MODELO_EMBEDDINGS = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 COLECCION = "conocimiento_clinico"
 DIMENSION_VECTOR = 384
 TAMANO_LOTE = 100               # al ser textos de abstract y guías más largos (500 palabras), bajamos a 100
-MAX_PUBMED_POR_TERMINO = 5      # limitado para no exceder recursos en la demostración (puedes subirlo)
+MAX_PUBMED_POR_TERMINO = 15      # Aumentado para obtener 500+ artículos en total
 
 
 def indexar_todo() -> None:

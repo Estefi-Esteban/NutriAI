@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet, Text, View, ScrollView,
-  TouchableOpacity, Linking
+  TouchableOpacity, Linking, ActivityIndicator, Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -9,7 +9,8 @@ import { Colors } from '../../constants/Colors';
 import { Spacing, Radius } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BASE_URL } from '../../services/api';
+import * as Sharing from 'expo-sharing';
+import { api } from '../../services/api';
 
 interface MenuItem {
   label: string;
@@ -46,14 +47,27 @@ const MENU_ITEMS: MenuItem[] = [
 export default function MasScreen() {
   const { user, token, signOut } = useAuth();
   const router = useRouter();
+  const [downloading, setDownloading] = useState(false);
 
   const handleDownloadReport = async () => {
     if (!token) return;
+    setDownloading(true);
     try {
-      const url = `${BASE_URL}/planes/reporte?token=${token}`;
-      await Linking.openURL(url);
-    } catch (error) {
+      const fileUri = await api.descargarInformePDF();
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'NutriAI — Tu Informe Nutricional',
+        });
+      } else {
+        Alert.alert('Compartir no disponible', 'La funcionalidad de compartir no está disponible en este dispositivo.');
+      }
+    } catch (error: any) {
       console.error('Error al descargar reporte:', error);
+      Alert.alert('Error de descarga', error.message || 'No se pudo descargar el informe en este momento.');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -123,6 +137,7 @@ export default function MasScreen() {
           style={styles.menuItem}
           onPress={handleDownloadReport}
           activeOpacity={0.75}
+          disabled={downloading}
         >
           <View style={[styles.iconBg, { backgroundColor: Colors.primary + '18' }]}>
             <Ionicons name="document-text" size={22} color={Colors.primary} />
@@ -131,7 +146,11 @@ export default function MasScreen() {
             <Text style={styles.menuItemTitle}>Descargar Informe PDF</Text>
             <Text style={styles.menuItemSub}>Exporta tu evolución mensual, macros, patologías y suplementación en un reporte clínico.</Text>
           </View>
-          <Ionicons name="download-outline" size={20} color={Colors.primary} />
+          {downloading ? (
+            <ActivityIndicator size="small" color={Colors.primary} />
+          ) : (
+            <Ionicons name="download-outline" size={20} color={Colors.primary} />
+          )}
         </TouchableOpacity>
       </View>
 
