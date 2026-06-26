@@ -6,8 +6,7 @@ import { Colors } from '../../constants/Colors';
 import { InputField } from '../../components/InputField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { GlassCard } from '../../components/GlassCard';
-
-const BACKEND_URL = 'http://172.21.20.184:8000';
+import { api, BASE_URL } from '../../services/api';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -21,7 +20,7 @@ export default function LoginScreen() {
   useEffect(() => {
     const checkServer = async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(4000) });
+        const res = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(4000) });
         setServerOk(res.ok);
       } catch {
         setServerOk(false);
@@ -44,7 +43,7 @@ export default function LoginScreen() {
       Alert.alert(
         isNetwork ? '❌ Sin conexión al servidor' : 'Error de inicio de sesión',
         isNetwork
-          ? `No se puede conectar a:\n${BACKEND_URL}\n\nVerifica que:\n• El backend está corriendo\n• El móvil y PC están en el mismo WiFi`
+          ? `No se puede conectar a:\n${BASE_URL}\n\nVerifica que:\n• El backend está corriendo\n• El móvil y PC están en el mismo WiFi`
           : msg
       );
     } finally {
@@ -60,7 +59,6 @@ export default function LoginScreen() {
     } catch (e: any) {
       // If mock user doesn't exist, register them and sign in
       try {
-        const { api } = require('../../services/api');
         await api.registro('Marta Google Test', 'google.test.user@nutriai.com', 'GoogleTestUserPassword123!');
         await signIn('google.test.user@nutriai.com', 'GoogleTestUserPassword123!');
       } catch (innerError: any) {
@@ -83,7 +81,7 @@ export default function LoginScreen() {
           <View style={styles.serverStatus}>
             <View style={[styles.statusDot, { backgroundColor: serverOk === null ? '#888' : serverOk ? '#4ade80' : '#f87171' }]} />
             <Text style={styles.statusText}>
-              {serverOk === null ? 'Comprobando conexión...' : serverOk ? 'Servidor conectado ✓' : `Sin servidor · ${BACKEND_URL}`}
+              {serverOk === null ? 'Comprobando conexión...' : serverOk ? 'Servidor conectado ✓' : `Sin servidor · ${BASE_URL}`}
             </Text>
           </View>
         </View>
@@ -154,7 +152,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11,
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
   },
   header: {
     alignItems: 'center',
@@ -168,7 +166,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -183,7 +181,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   dividerText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginVertical: 12,
   },
@@ -195,7 +193,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
   },
   linkText: {

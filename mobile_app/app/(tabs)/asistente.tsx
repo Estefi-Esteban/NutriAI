@@ -199,7 +199,7 @@ export default function AsistenteScreen() {
           disabled={!inputValue.trim() || loading}
           activeOpacity={0.8}
         >
-          <Ionicons name="send" size={18} color={inputValue.trim() ? '#000' : Colors.textTertiary} />
+          <Ionicons name="send" size={18} color={inputValue.trim() ? '#fff' : Colors.textTertiary} />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

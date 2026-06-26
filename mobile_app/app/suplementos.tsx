@@ -117,7 +117,7 @@ export default function SupplementsScreen() {
         </View>
       ) : (
         <View style={styles.noRecsContainer}>
-          <Ionicons name="leaf-outline" size={48} color={Colors.textMuted} />
+          <Ionicons name="leaf-outline" size={48} color={Colors.primary} />
           <Text style={styles.noRecsText}>Aún no tienes recomendaciones.</Text>
           <Text style={styles.noRecsSubtext}>Toca el botón superior para generarlas.</Text>
         </View>
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerCard: {
-    borderColor: 'rgba(99, 102, 241, 0.2)',
+    borderColor: Colors.cardBorder,
   },
   cardTitle: {
     color: Colors.text,
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   cardSub: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 13,
     marginBottom: 16,
     lineHeight: 18,
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   supItem: {
     paddingVertical: 10,
-    borderBottomColor: 'rgba(255, 255, 255, 0.03)',
+    borderBottomColor: Colors.cardBorder,
     borderBottomWidth: 1,
   },
   supName: {
@@ -181,19 +181,19 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   supReason: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 12,
     lineHeight: 16,
     marginTop: 4,
   },
   emptyText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 13,
     paddingVertical: 8,
   },
-  neededCard: { borderColor: 'rgba(16, 185, 129, 0.2)' },
-  optionalCard: { borderColor: 'rgba(167, 139, 250, 0.2)' },
-  unnecessaryCard: { borderColor: 'rgba(239, 68, 68, 0.2)' },
+  neededCard: { borderColor: Colors.success + '30' },
+  optionalCard: { borderColor: Colors.secondary + '30' },
+  unnecessaryCard: { borderColor: Colors.danger + '30' },
   notesTitle: {
     color: Colors.text,
     fontSize: 14,
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   notesText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
   },
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   noRecsSubtext: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 13,
     marginTop: 6,
   },

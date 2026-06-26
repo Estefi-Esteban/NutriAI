@@ -106,7 +106,7 @@ export default function RegistroScreen() {
               <Ionicons 
                 name={acceptTerms ? "checkbox" : "square-outline"} 
                 size={20} 
-                color={acceptTerms ? Colors.primary : Colors.textMuted} 
+                color={acceptTerms ? Colors.primary : Colors.textSecondary} 
               />
               <Text style={styles.checkboxLabel}>Acepto los Términos de uso</Text>
             </TouchableOpacity>
@@ -119,7 +119,7 @@ export default function RegistroScreen() {
               <Ionicons 
                 name={acceptPrivacy ? "checkbox" : "square-outline"} 
                 size={20} 
-                color={acceptPrivacy ? Colors.primary : Colors.textMuted} 
+                color={acceptPrivacy ? Colors.primary : Colors.textSecondary} 
               />
               <Text style={styles.checkboxLabel}>Acepto la Política de privacidad</Text>
             </TouchableOpacity>
@@ -132,7 +132,7 @@ export default function RegistroScreen() {
               <Ionicons 
                 name={acceptHealthConsent ? "checkbox" : "square-outline"} 
                 size={20} 
-                color={acceptHealthConsent ? Colors.primary : Colors.textMuted} 
+                color={acceptHealthConsent ? Colors.primary : Colors.textSecondary} 
               />
               <Text style={styles.checkboxLabel}>Consiento el procesamiento de mis datos de salud (RGPD)</Text>
             </TouchableOpacity>
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
   },
   linkText: {

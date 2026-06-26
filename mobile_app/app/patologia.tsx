@@ -98,7 +98,7 @@ export default function PathologyScreen() {
               <Ionicons
                 name={isChecked ? 'checkbox' : 'square-outline'}
                 size={20}
-                color={isChecked ? Colors.primary : Colors.textMuted}
+                color={isChecked ? Colors.primary : Colors.textSecondary}
               />
               <Text style={[styles.checkboxLabel, isChecked && styles.checkboxLabelChecked]}>
                 {pat.label}
@@ -122,7 +122,12 @@ export default function PathologyScreen() {
                 styles.statusBadge,
                 protocol.nivel_restriccion === 'alto' ? styles.statusHigh : styles.statusNormal
               ]}>
-                <Text style={styles.statusText}>{protocol.nivel_restriccion.toUpperCase()}</Text>
+                <Text style={[
+                  styles.statusText,
+                  { color: protocol.nivel_restriccion === 'alto' ? Colors.danger : Colors.primary }
+                ]}>
+                  {protocol.nivel_restriccion.toUpperCase()}
+                </Text>
               </View>
             </View>
 
@@ -189,7 +194,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   cardSub: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 13,
     marginBottom: 20,
   },
@@ -197,7 +202,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    borderBottomColor: 'rgba(255, 255, 255, 0.03)',
+    borderBottomColor: Colors.cardBorder,
     borderBottomWidth: 1,
   },
   checkboxLabel: {
@@ -227,7 +232,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   infoLabel: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 13,
     marginRight: 10,
     fontWeight: '600',
@@ -240,12 +245,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   notesText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
   },
   listLine: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 13,
     marginBottom: 4,
   },
@@ -266,25 +271,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chipProhibited: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
     borderWidth: 1,
   },
   chipPriority: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    backgroundColor: Colors.primaryFaint,
+    borderColor: Colors.primary + '30',
     borderWidth: 1,
   },
   statusBadge: {
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    borderWidth: 1,
   },
   statusText: {
-    color: Colors.text,
     fontSize: 10,
     fontWeight: '700',
   },
-  statusNormal: { backgroundColor: Colors.success },
-  statusHigh: { backgroundColor: Colors.danger },
+  statusNormal: { 
+    backgroundColor: Colors.primaryFaint,
+    borderColor: Colors.primary + '30',
+  },
+  statusHigh: { 
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
 });

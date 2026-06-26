@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   senderLabel: {
     fontSize: 11,
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     marginBottom: 4,
     fontWeight: '600',
   },
@@ -255,8 +255,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   userBubble: {
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-    borderColor: 'rgba(99, 102, 241, 0.4)',
+    backgroundColor: Colors.primaryFaint,
+    borderColor: Colors.primary + '40',
     borderWidth: 1,
     borderBottomRightRadius: 2,
   },
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
   },
   sendBtnText: {
-    color: Colors.text,
+    color: '#fff',
     fontWeight: '700',
     fontSize: 14,
   },
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   generatingSubtitle: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
     marginTop: 8,
     marginBottom: 24,
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   disclaimerCancelText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
   },

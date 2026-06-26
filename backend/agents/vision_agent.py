@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 
 # Modelos con fallback: el grande primero, si hay rate-limit usamos el pequeño
 _MODELOS_VISION = [
-    "llama-3.2-90b-vision-preview",
-    "llama-3.2-11b-vision-preview",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "qwen/qwen3.6-27b",
 ]
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"

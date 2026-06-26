@@ -10,7 +10,6 @@ import { useRouter } from 'expo-router';
 
 export default function VisionScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [base64Img, setBase64Img] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
   const [registering, setRegistering] = useState(false);
@@ -24,7 +23,6 @@ export default function VisionScreen() {
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
-        base64: true, // Crucial: gives us the base64 string directly
       };
 
       if (useCamera) {
@@ -46,7 +44,6 @@ export default function VisionScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         setImageUri(asset.uri);
-        setBase64Img(asset.base64 || null);
         setAnalysis(null); // Clear previous analysis
       }
     } catch (e) {
@@ -55,10 +52,14 @@ export default function VisionScreen() {
   };
 
   const handleAnalyze = async () => {
-    if (!base64Img) return;
+    if (!imageUri) return;
     setLoading(true);
     try {
-      const data = await api.analizarPlato(base64Img);
+      const filename = imageUri.split('/').pop() || 'plato.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      const data = await api.analizarPlato(imageUri, filename, type);
       setAnalysis(data);
     } catch (e: any) {
       Alert.alert('Error de análisis', e.message || 'No se pudo analizar la imagen.');
@@ -120,7 +121,7 @@ export default function VisionScreen() {
       </View>
 
       {/* Action Button: Analyze */}
-      {base64Img && !analysis && (
+      {imageUri && !analysis && (
         <PrimaryButton
           title="⚡ Analizar Plato"
           loading={loading}
@@ -206,7 +207,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   subtitle: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
     marginTop: 4,
     marginBottom: 20,
@@ -233,7 +234,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   placeholderText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     marginTop: 10,
     fontSize: 14,
     fontWeight: '600',
@@ -269,7 +270,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   loadingText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
     marginTop: 12,
     fontWeight: '600',
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   plateSummary: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 16,
@@ -318,16 +319,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 4,
   },
-  badgeKcal: { backgroundColor: 'rgba(167, 139, 250, 0.2)' },
-  badgeProt: { backgroundColor: 'rgba(248, 113, 113, 0.2)' },
-  badgeCarb: { backgroundColor: 'rgba(251, 191, 36, 0.2)' },
-  badgeFat: { backgroundColor: 'rgba(52, 211, 153, 0.2)' },
+  badgeKcal: { backgroundColor: Colors.primary + '15' },
+  badgeProt: { backgroundColor: Colors.macroProtein + '20' },
+  badgeCarb: { backgroundColor: Colors.macroCarbs + '20' },
+  badgeFat: { backgroundColor: Colors.macroFat + '20' },
   foodRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 8,
-    borderBottomColor: 'rgba(255, 255, 255, 0.03)',
+    borderBottomColor: Colors.cardBorder,
     borderBottomWidth: 1,
   },
   foodRowLeft: {

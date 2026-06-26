@@ -82,7 +82,7 @@ export default function MasScreen() {
     >
       {/* ── Profile Card ── */}
       <LinearGradient
-        colors={['#1A2E1A', '#0F1F14']}
+        colors={[Colors.primaryFaint, Colors.background]}
         style={styles.profileCard}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

@@ -185,7 +185,7 @@ export default function ClinicalScreen() {
       {/* Report Output */}
       {report && (
         <View style={styles.reportContainer}>
-          <GlassCard style={styles.summaryCard}>
+            <GlassCard style={styles.summaryCard}>
             <Text style={styles.sectionTitle}>Análisis Clínico Realizado</Text>
             <Text style={styles.summaryText}>{report.resumen_general}</Text>
             
@@ -203,7 +203,7 @@ export default function ClinicalScreen() {
             <Text style={styles.sectionTitle}>Marcadores Analizados</Text>
             {report.marcadores && Object.entries(report.marcadores).map(([key, marker]: [string, any], idx) => (
               <View key={idx} style={styles.markerRow}>
-                <View>
+                <View style={{ flex: 1, paddingRight: 8 }}>
                   <Text style={styles.markerName}>{key.toUpperCase()}</Text>
                   <Text style={styles.markerExplanation}>{marker.explicacion}</Text>
                 </View>
@@ -213,7 +213,12 @@ export default function ClinicalScreen() {
                     styles.statusBadge,
                     marker.estado === 'normal' ? styles.statusNormal : styles.statusElevado
                   ]}>
-                    <Text style={styles.statusText}>{marker.estado.toUpperCase()}</Text>
+                    <Text style={[
+                      styles.statusText,
+                      { color: marker.estado === 'normal' ? Colors.primary : Colors.warning }
+                    ]}>
+                      {marker.estado.toUpperCase()}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -249,12 +254,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   tabText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontWeight: '700',
     fontSize: 14,
   },
   tabTextActive: {
-    color: Colors.text,
+    color: '#fff',
   },
   cardTitle: {
     color: Colors.text,
@@ -263,7 +268,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   cardSub: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 13,
     marginBottom: 20,
   },
@@ -276,11 +281,11 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: Colors.background,
     marginBottom: 16,
   },
   filePickerLabel: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 13,
     marginTop: 10,
     fontWeight: '600',
@@ -297,7 +302,7 @@ const styles = StyleSheet.create({
     marginVertical: 24,
   },
   loadingText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
     marginTop: 12,
     fontWeight: '600',
@@ -312,10 +317,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   summaryCard: {
-    borderColor: 'rgba(99, 102, 241, 0.2)',
+    borderColor: Colors.cardBorder,
   },
   summaryText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -340,7 +345,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 12,
-    borderBottomColor: 'rgba(255, 255, 255, 0.03)',
+    borderBottomColor: Colors.cardBorder,
     borderBottomWidth: 1,
   },
   markerName: {
@@ -349,7 +354,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   markerExplanation: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 11,
     marginTop: 4,
     lineHeight: 14,
@@ -357,6 +362,7 @@ const styles = StyleSheet.create({
   },
   markerRight: {
     alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   markerVal: {
     color: Colors.text,
@@ -368,14 +374,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     marginTop: 6,
+    borderWidth: 1,
   },
   statusText: {
-    color: Colors.text,
     fontSize: 9,
     fontWeight: '700',
   },
-  statusNormal: { backgroundColor: Colors.success },
-  statusElevado: { backgroundColor: Colors.warning },
+  statusNormal: { 
+    backgroundColor: Colors.primaryFaint,
+    borderColor: Colors.primary + '30',
+  },
+  statusElevado: { 
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    borderColor: 'rgba(251, 191, 36, 0.25)',
+  },
   consentCard: {
     paddingVertical: 24,
     alignItems: 'center',

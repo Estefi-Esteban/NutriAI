@@ -89,7 +89,15 @@ async function request<T>(endpoint: string, options: RequestInit = {}, isMultipa
     let errorMessage = 'Error en la solicitud';
     try {
       const errorData = await response.json();
-      errorMessage = errorData.detail || errorMessage;
+      if (errorData && errorData.detail) {
+        if (Array.isArray(errorData.detail)) {
+          errorMessage = errorData.detail.map((err: any) => err.msg || JSON.stringify(err)).join(', ');
+        } else if (typeof errorData.detail === 'object') {
+          errorMessage = JSON.stringify(errorData.detail);
+        } else {
+          errorMessage = errorData.detail;
+        }
+      }
     } catch (e) {
       // JSON parsing failed
     }
@@ -231,11 +239,19 @@ export const api = {
   },
 
   // --- VISION AGENT (Fase 3.3) ---
-  analizarPlato: async (base64Image: string): Promise<any> => {
+  analizarPlato: async (uri: string, filename: string, mimeType: string): Promise<any> => {
+    const formData = new FormData();
+    // @ts-ignore
+    formData.append('foto', {
+      uri,
+      name: filename,
+      type: mimeType,
+    });
+
     return request<any>('/vision/analizar-plato', {
       method: 'POST',
-      body: JSON.stringify({ imagen_base64: base64Image }),
-    });
+      body: formData,
+    }, true);
   },
 
   registrarMacrosPlato: async (platoData: { nombre_plato: string; kcal: number; proteinas_g: number; carbos_g: number; grasas_g: number }): Promise<any> => {
