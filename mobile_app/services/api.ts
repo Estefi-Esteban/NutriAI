@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Base URL configuration
 // Note: Use 'http://10.0.2.2:8000' for Android Emulator, or your local machine IP for physical devices.
-const BASE_URL = 'https://nutriai-backend.up.railway.app';
+export const BASE_URL = 'https://nutriai-backend.up.railway.app';
 
 export interface UserInfo {
   id: number;
@@ -12,6 +12,7 @@ export interface UserInfo {
 
 export interface AuthResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
   user_id: number;
 }
@@ -42,7 +43,46 @@ async function request<T>(endpoint: string, options: RequestInit = {}, isMultipa
     },
   };
 
-  const response = await fetch(url, config);
+  let response = await fetch(url, config);
+
+  // Si da 401 y no es un endpoint de autenticación, intentamos refrescar el token de forma silenciosa
+  if (response.status === 401 && !['/auth/login', '/auth/registro', '/auth/refresh', '/auth/google'].includes(endpoint)) {
+    const refreshToken = await AsyncStorage.getItem('user_refresh_token');
+    if (refreshToken) {
+      try {
+        const refreshResponse = await fetch(`${BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+
+        if (refreshResponse.ok) {
+          const refreshData: AuthResponse = await refreshResponse.json();
+          await AsyncStorage.setItem('user_token', refreshData.access_token);
+          await AsyncStorage.setItem('user_refresh_token', refreshData.refresh_token);
+
+          // Reintentar la solicitud original
+          const retryHeaders = await getHeaders(isMultipart);
+          const retryConfig = {
+            ...options,
+            headers: {
+              ...retryHeaders,
+              ...(options.headers || {}),
+            },
+          };
+          response = await fetch(url, retryConfig);
+        } else {
+          // El token de refresco expiró o fue revocado, limpiar sesión
+          await AsyncStorage.removeItem('user_token');
+          await AsyncStorage.removeItem('user_refresh_token');
+        }
+      } catch (refreshError) {
+        console.error('Error al intentar refrescar el token de acceso:', refreshError);
+      }
+    }
+  }
 
   if (!response.ok) {
     let errorMessage = 'Error en la solicitud';
@@ -71,6 +111,20 @@ export const api = {
     return request<AuthResponse>('/auth/registro', {
       method: 'POST',
       body: JSON.stringify({ nombre, email, password }),
+    });
+  },
+
+  refreshSession: async (refreshToken: string): Promise<AuthResponse> => {
+    return request<AuthResponse>('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+  },
+
+  logout: async (refreshToken: string): Promise<any> => {
+    return request<any>('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken }),
     });
   },
 

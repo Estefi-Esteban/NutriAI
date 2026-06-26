@@ -91,7 +91,13 @@ def get_db():
         db.close()
 
 
-def get_current_user(token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+from fastapi import Query
+
+def get_current_user(
+    token: Optional[str] = Depends(oauth2_scheme),
+    token_query: Optional[str] = Query(None, alias="token"),
+    db: Session = Depends(get_db)
+) -> User:
     """
     Dependencia para obtener el usuario autenticado a partir del JWT.
     Lanza HTTP 401 si no hay token o es inválido.
@@ -101,10 +107,12 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme), db: Session 
         detail="No autorizado o token inválido/expirado",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    if not token:
+    
+    actual_token = token or token_query
+    if not actual_token:
         raise credentials_exception
 
-    user_id_str = verificar_token_acceso(token)
+    user_id_str = verificar_token_acceso(actual_token)
     if user_id_str is None:
         raise credentials_exception
 

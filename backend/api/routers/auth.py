@@ -1,14 +1,22 @@
+from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 
-from backend.api.schemas.auth_schema import RegistroRequest, LoginRequest, GoogleLoginRequest, TokenResponse
+from backend.api.schemas.auth_schema import (
+    RegistroRequest,
+    LoginRequest,
+    GoogleLoginRequest,
+    TokenResponse,
+    RefreshTokenRequest,
+)
 from backend.database.connection import SessionLocal
-from backend.database.models import User
+from backend.database.models import User, RefreshToken
 from backend.database.repositories.user_repository import crear_usuario
 from backend.utils.security import (
     obtener_hash_password,
     verificar_password,
     crear_token_acceso,
+    crear_token_refresco,
     verificar_google_token,
 )
 from backend.api.rate_limiter import (
@@ -26,6 +34,21 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def generar_y_guardar_token_refresco(db: Session, user_id: int) -> str:
+    """Genera un nuevo refresh token, lo guarda en la BD y lo retorna."""
+    token_str = crear_token_refresco()
+    expiracion = datetime.utcnow() + timedelta(days=30)
+    db_token = RefreshToken(
+        user_id=user_id,
+        token=token_str,
+        fecha_expiracion=expiracion,
+        revocado=False
+    )
+    db.add(db_token)
+    db.commit()
+    return token_str
 
 
 @router.post("/registro", response_model=TokenResponse)
@@ -49,10 +72,12 @@ def registro(payload: RegistroRequest, db: Session = Depends(get_db)):
         auth_provider="email"
     )
 
-    # Generar token de acceso
+    # Generar token de acceso y de refresco
     access_token = crear_token_acceso(subject=usuario.id)
+    refresh_token = generar_y_guardar_token_refresco(db, usuario.id)
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
         user_id=usuario.id,
         nombre=usuario.nombre,
         email=usuario.email,
@@ -86,10 +111,12 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     # Login exitoso, resetear intentos fallidos
     reset_failed_attempts(ip, payload.email)
 
-    # Generar token
+    # Generar tokens
     access_token = crear_token_acceso(subject=usuario.id)
+    refresh_token = generar_y_guardar_token_refresco(db, usuario.id)
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
         user_id=usuario.id,
         nombre=usuario.nombre,
         email=usuario.email,
@@ -140,11 +167,75 @@ def login_google(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
                 auth_provider="google"
             )
 
-    # Generar token de acceso propio de NutriAI
+    # Generar token de acceso propio de NutriAI y de refresco
     access_token = crear_token_acceso(subject=usuario.id)
+    refresh_token = generar_y_guardar_token_refresco(db, usuario.id)
     return TokenResponse(
         access_token=access_token,
+        refresh_token=refresh_token,
         user_id=usuario.id,
         nombre=usuario.nombre,
         email=usuario.email,
     )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """Renueva un access token expirado usando un refresh token válido."""
+    # 1. Buscar el refresh token en la base de datos
+    db_token = db.query(RefreshToken).filter(
+        RefreshToken.token == payload.refresh_token,
+        RefreshToken.revocado == False
+    ).first()
+
+    if not db_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Token de refresco inválido o ya utilizado/revocado"
+        )
+
+    # 2. Verificar que no haya expirado
+    if db_token.fecha_expiracion < datetime.utcnow():
+        db_token.revocado = True
+        db.commit()
+        raise HTTPException(
+            status_code=401,
+            detail="Token de refresco expirado"
+        )
+
+    # 3. Obtener el usuario
+    usuario = db.query(User).filter(User.id == db_token.user_id).first()
+    if not usuario:
+        raise HTTPException(
+            status_code=401,
+            detail="Usuario no encontrado"
+        )
+
+    # 4. Rotación de tokens: Revocar el token actual
+    db_token.revocado = True
+    db.commit()
+
+    # 5. Generar nuevos tokens
+    nuevo_access = crear_token_acceso(subject=usuario.id)
+    nuevo_refresh = generar_y_guardar_token_refresco(db, usuario.id)
+
+    return TokenResponse(
+        access_token=nuevo_access,
+        refresh_token=nuevo_refresh,
+        user_id=usuario.id,
+        nombre=usuario.nombre,
+        email=usuario.email,
+    )
+
+
+@router.post("/logout")
+def logout(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """Revoca el refresh token para cerrar sesión activamente."""
+    db_token = db.query(RefreshToken).filter(
+        RefreshToken.token == payload.refresh_token
+    ).first()
+    if db_token:
+        db_token.revocado = True
+        db.commit()
+    return {"mensaje": "Sesión cerrada correctamente"}
+

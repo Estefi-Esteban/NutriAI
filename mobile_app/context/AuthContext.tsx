@@ -23,15 +23,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const bootstrapAsync = async () => {
       try {
         const storedToken = await AsyncStorage.getItem('user_token');
+        const storedRefreshToken = await AsyncStorage.getItem('user_refresh_token');
+
         if (storedToken) {
-          setToken(storedToken);
-          // Fetch user info
-          const userInfo = await api.getMe();
-          setUser(userInfo);
+          try {
+            setToken(storedToken);
+            // Fetch user info
+            const userInfo = await api.getMe();
+            setUser(userInfo);
+          } catch (getMeError) {
+            // Si falla obtener los datos (probablemente token expirado), intentamos refrescar
+            if (storedRefreshToken) {
+              try {
+                const refreshRes = await api.refreshSession(storedRefreshToken);
+                await AsyncStorage.setItem('user_token', refreshRes.access_token);
+                await AsyncStorage.setItem('user_refresh_token', refreshRes.refresh_token);
+                setToken(refreshRes.access_token);
+
+                const userInfo = await api.getMe();
+                setUser(userInfo);
+              } catch (refreshError) {
+                // Si el refresco también falla, limpiamos la sesión
+                await AsyncStorage.removeItem('user_token');
+                await AsyncStorage.removeItem('user_refresh_token');
+                setToken(null);
+                setUser(null);
+              }
+            } else {
+              // Sin token de refresco, limpiamos la sesión
+              await AsyncStorage.removeItem('user_token');
+              setToken(null);
+              setUser(null);
+            }
+          }
         }
       } catch (e) {
         // Failed to load token or user info
         await AsyncStorage.removeItem('user_token');
+        await AsyncStorage.removeItem('user_refresh_token');
       } finally {
         setLoading(false);
       }
@@ -45,6 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await api.login(email, password);
       await AsyncStorage.setItem('user_token', res.access_token);
+      await AsyncStorage.setItem('user_refresh_token', res.refresh_token);
       setToken(res.access_token);
       
       const userInfo = await api.getMe();
@@ -62,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await api.registro(nombre, email, password);
       await AsyncStorage.setItem('user_token', res.access_token);
+      await AsyncStorage.setItem('user_refresh_token', res.refresh_token);
       setToken(res.access_token);
 
       const userInfo = await api.getMe();
@@ -77,10 +108,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     setLoading(true);
     try {
+      const storedRefreshToken = await AsyncStorage.getItem('user_refresh_token');
+      if (storedRefreshToken) {
+        try {
+          await api.logout(storedRefreshToken);
+        } catch (logoutError) {
+          // Ignoramos errores de red al cerrar sesión para garantizar que el cliente se desloguee localmente
+          console.warn('Error al revocar sesión en el servidor:', logoutError);
+        }
+      }
+    } finally {
       await AsyncStorage.removeItem('user_token');
+      await AsyncStorage.removeItem('user_refresh_token');
       setToken(null);
       setUser(null);
-    } finally {
       setLoading(false);
     }
   };

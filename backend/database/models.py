@@ -177,3 +177,17 @@ class ChatMessage(Base):
     usuario = relationship("User")
 
 
+class RefreshToken(Base):
+    __tablename__ = 'refresh_tokens'
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
+    token = Column(String, unique=True, index=True, nullable=False)
+    fecha_expiracion = Column(DateTime, nullable=False)
+    revocado = Column(Boolean, default=False, nullable=False)
+    fecha_creacion = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    usuario = relationship("User")
+
+
+

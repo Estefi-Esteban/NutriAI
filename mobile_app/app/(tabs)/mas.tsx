@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   StyleSheet, Text, View, ScrollView,
-  TouchableOpacity
+  TouchableOpacity, Linking
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +9,7 @@ import { Colors } from '../../constants/Colors';
 import { Spacing, Radius } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BASE_URL } from '../../services/api';
 
 interface MenuItem {
   label: string;
@@ -43,8 +44,18 @@ const MENU_ITEMS: MenuItem[] = [
 ];
 
 export default function MasScreen() {
-  const { user, signOut } = useAuth();
+  const { user, token, signOut } = useAuth();
   const router = useRouter();
+
+  const handleDownloadReport = async () => {
+    if (!token) return;
+    try {
+      const url = `${BASE_URL}/planes/reporte?token=${token}`;
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error('Error al descargar reporte:', error);
+    }
+  };
 
   const initials = user?.nombre
     ? user.nombre.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -100,6 +111,28 @@ export default function MasScreen() {
             {i < MENU_ITEMS.length - 1 && <View style={styles.menuDivider} />}
           </React.Fragment>
         ))}
+      </View>
+
+      {/* ── Reports & Export ── */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Informes y Exportación</Text>
+      </View>
+
+      <View style={styles.menuCard}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={handleDownloadReport}
+          activeOpacity={0.75}
+        >
+          <View style={[styles.iconBg, { backgroundColor: Colors.primary + '18' }]}>
+            <Ionicons name="document-text" size={22} color={Colors.primary} />
+          </View>
+          <View style={styles.menuTextCol}>
+            <Text style={styles.menuItemTitle}>Descargar Informe PDF</Text>
+            <Text style={styles.menuItemSub}>Exporta tu evolución mensual, macros, patologías y suplementación en un reporte clínico.</Text>
+          </View>
+          <Ionicons name="download-outline" size={20} color={Colors.primary} />
+        </TouchableOpacity>
       </View>
 
       {/* ── App Info ── */}

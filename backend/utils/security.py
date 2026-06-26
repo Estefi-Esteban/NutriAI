@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import secrets
 from typing import Optional, Union, Any
 import bcrypt
 from jose import jwt, JWTError
@@ -6,6 +7,12 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 from backend.config import jwt_secret_key, jwt_algorithm, jwt_expire_minutes, google_client_id
+
+
+def crear_token_refresco() -> str:
+    """Genera un token de refresco aleatorio y criptográficamente seguro."""
+    return secrets.token_hex(32)
+
 
 
 def obtener_hash_password(password: str) -> str:
