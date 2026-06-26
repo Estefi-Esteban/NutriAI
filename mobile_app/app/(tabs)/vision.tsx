@@ -177,7 +177,7 @@ export default function VisionScreen() {
                   />
                   <Text style={styles.foodName}>{food.nombre_detectado}</Text>
                 </View>
-                <Text style={styles.foodQty}>{food.cantidad_estimada}</Text>
+                <Text style={styles.foodQty}>{food.cantidad_g}g</Text>
               </View>
             ))}
           </GlassCard>

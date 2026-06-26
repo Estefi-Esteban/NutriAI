@@ -150,24 +150,78 @@ def buscar_alimento(query: str, n_resultados: int = 3) -> list[dict]:
 
 def buscar_mejor_match(query: str) -> Optional[dict]:
     """
-    Devuelve el alimento más parecido a la query, o None si:
+    Devuelve el alimento más parecido a la query usando una búsqueda híbrida
+    (vectorial + re-ranking de coincidencia de palabras clave por prefijo).
+    
+    Devuelve None si:
     - RAG no disponible
     - No hay resultados
-    - El mejor resultado no supera el umbral de similitud (0.75)
+    - El mejor resultado re-ordenado no supera el umbral de similitud base (0.75)
     """
-    resultados = buscar_alimento(query, n_resultados=1)
+    # Buscamos los 40 candidatos principales en Qdrant
+    resultados = buscar_alimento(query, n_resultados=40)
     if not resultados:
         return None
 
-    mejor = resultados[0]
-    if mejor["similitud"] < UMBRAL_SIMILITUD:
-        logger.debug(
-            "Match descartado para '%s': similitud %.3f < umbral %.2f",
-            query, mejor["similitud"], UMBRAL_SIMILITUD,
-        )
-        return None
+    # Extraer palabras clave de la consulta (limpiando puntuación y palabras de parada)
+    query_clean = query.lower().replace(",", " ").replace(".", " ").replace(";", " ")
+    query_words = set(query_clean.split())
+    stop_words = {
+        "de", "la", "a", "con", "en", "para", "un", "una", "el", "los", "las", 
+        "y", "al", "del", "o", "u", "su", "sus", "por", "como", "plana", "plancha"
+    }
+    query_keywords = {w for w in query_words if w not in stop_words and len(w) > 2}
 
-    return mejor
+    best_item = None
+    best_score = -1.0
+
+    for r in resultados:
+        nombre_clean = r["nombre"].lower().replace(",", " ").replace(".", " ").replace(";", " ")
+        nombre_words = set(nombre_clean.split())
+        nombre_keywords = {w for w in nombre_words if w not in stop_words and len(w) > 2}
+        
+        # Calcular coincidencia de palabras clave (con soporte de prefijos para tolerar typos)
+        overlap = 0
+        for qw in query_keywords:
+            for nw in nombre_keywords:
+                # Comprobación directa o si comparten un prefijo de al menos 4 letras (ej. mantequeilla -> mantequilla)
+                if qw in nw or nw in qw or (len(qw) > 3 and len(nw) > 3 and qw[:4] == nw[:4]):
+                    overlap += 1
+                    break
+        
+        # Puntuación final combinada: similitud base + 0.15 por palabra clave coincidente
+        score = r["similitud"] + (overlap * 0.15)
+        
+        if score > best_score:
+            best_score = score
+            best_item = r
+
+    # Para ser válido, la similitud base (vectorial pura) del mejor candidato re-ordenado 
+    # no debe ser inferior al umbral, pero si tiene buen match de palabras clave (overlap >= 2)
+    # permitimos ser un poco más flexibles (umbral rebajado a 0.70)
+    umbral = UMBRAL_SIMILITUD
+    if best_item:
+        best_name_clean = best_item["nombre"].lower().replace(",", " ").replace(".", " ").replace(";", " ")
+        best_name_words = set(best_name_clean.split())
+        best_name_keywords = {w for w in best_name_words if w not in stop_words and len(w) > 2}
+        best_overlap = 0
+        for qw in query_keywords:
+            for nw in best_name_keywords:
+                if qw in nw or nw in qw or (len(qw) > 3 and len(nw) > 3 and qw[:4] == nw[:4]):
+                    best_overlap += 1
+                    break
+        
+        if best_overlap >= 2:
+            umbral = 0.70
+
+        if best_item["similitud"] < umbral:
+            logger.debug(
+                "Match re-rankeado '%s' descartado: similitud base %.3f < umbral %.2f",
+                best_item["nombre"], best_item["similitud"], umbral,
+            )
+            return None
+
+    return best_item
 
 
 # ── Corrección de ingredientes con datos verificados ─────────────────────────
