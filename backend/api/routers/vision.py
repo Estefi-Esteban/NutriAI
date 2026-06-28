@@ -10,6 +10,7 @@ POST /vision/analizar-plato/registrar
 
 import logging
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.api.schemas.vision_schema import AnalisisVisualResponse
@@ -18,6 +19,14 @@ from backend.api.rate_limiter import limitar_peticiones_ia
 from backend.agents.vision_agent import VisionAgent
 
 logger = logging.getLogger(__name__)
+
+class RegistrarMacrosRequest(BaseModel):
+    nombre_plato: str
+    kcal: float
+    proteinas_g: float
+    carbos_g: float
+    grasas_g: float
+
 
 router = APIRouter(prefix="/vision", tags=["Visión — Análisis de Platos"])
 
@@ -99,46 +108,53 @@ async def analizar_plato(
 
 @router.post("/analizar-plato/registrar", response_model=AnalisisVisualResponse)
 async def analizar_y_registrar(
-    foto: UploadFile = File(..., description="Foto del plato (jpg, png o webp, máx 10MB)"),
+    payload: RegistrarMacrosRequest,
     comida: str = "almuerzo",   # query param opcional
     current_user=Depends(limitar_peticiones_ia),
     db: Session = Depends(get_db),
 ):
     """
-    Analiza la foto Y registra la ingesta en el seguimiento diario del usuario.
-
-    Parámetro `comida`: desayuno | almuerzo | cena | snack (por defecto: almuerzo)
+    Registra directamente los macros de un plato en el seguimiento diario (formato JSON).
     """
-    mime_type = _validar_imagen(foto)
-    contenido = await foto.read()
-
-    if len(contenido) > MAX_TAMANO_MB * 1024 * 1024:
-        raise HTTPException(status_code=413, detail=f"Máximo {MAX_TAMANO_MB}MB.")
-    if len(contenido) < 1000:
-        raise HTTPException(status_code=400, detail="Archivo vacío o demasiado pequeño.")
-
-    agente = VisionAgent()
     try:
-        resultado = agente.analizar_plato(contenido, mime_type)
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        from backend.database.models import IngestaDiaria
+        from datetime import date
+
+        ingesta = IngestaDiaria(
+            user_id=current_user.id,
+            fecha=date.today(),
+            comida=comida,
+            descripcion=payload.nombre_plato,
+            kcal=payload.kcal,
+            proteinas_g=payload.proteinas_g,
+            carbos_g=payload.carbos_g,
+            grasas_g=payload.grasas_g,
+            origen="vision",
+            detalle_json=[],
+        )
+        db.add(ingesta)
+        db.commit()
+        logger.info("VisionRouter: ingesta directa registrada para usuario %s", current_user.id)
     except Exception as e:
-        logger.error("VisionRouter (registrar): %s", e)
-        raise HTTPException(status_code=500, detail="Error interno al analizar la imagen.")
+        db.rollback()
+        logger.error("VisionRouter (registrar directo): %s", e)
+        raise HTTPException(status_code=500, detail="No se pudo registrar la comida en el diario.")
 
-    # Registrar en seguimiento diario si hay datos de macros
-    totales = resultado.get("totales", {})
-    if totales.get("kcal", 0) > 0:
-        try:
-            _registrar_ingesta(db, current_user.id, comida, resultado)
-        except Exception as e:
-            # No rompemos el flujo si el registro falla — solo logueamos
-            logger.warning(
-                "VisionRouter: no se pudo registrar la ingesta del usuario %s: %s",
-                current_user.id, e,
-            )
-
-    return AnalisisVisualResponse(**resultado)
+    # Devolvemos un objeto compatible con AnalisisVisualResponse
+    return {
+        "descripcion_plato": payload.nombre_plato,
+        "calidad_imagen": "BUENA",
+        "advertencia": None,
+        "alimentos": [],
+        "totales": {
+            "kcal": payload.kcal,
+            "proteinas_g": payload.proteinas_g,
+            "carbos_g": payload.carbos_g,
+            "grasas_g": payload.grasas_g,
+            "alimentos_sin_datos": []
+        },
+        "disclaimer": "Registrado directamente."
+    }
 
 
 def _registrar_ingesta(db: Session, user_id: int, comida: str, analisis: dict):
