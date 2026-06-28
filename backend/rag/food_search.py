@@ -224,6 +224,62 @@ def buscar_mejor_match(query: str) -> Optional[dict]:
     return best_item
 
 
+def buscar_mejor_match_vision(query: str) -> Optional[dict]:
+    """
+    Versión más permisiva para el agente de visión.
+    Umbral más bajo (0.55) porque los nombres vienen del modelo de visión
+    y pueden no coincidir exactamente con la BD.
+    """
+    # Buscamos los 40 candidatos principales en Qdrant
+    resultados = buscar_alimento(query, n_resultados=40)
+    if not resultados:
+        return None
+
+    # Extraer palabras clave de la consulta (limpiando puntuación y palabras de parada)
+    query_clean = query.lower().replace(",", " ").replace(".", " ").replace(";", " ")
+    query_words = set(query_clean.split())
+    stop_words = {
+        "de", "la", "a", "con", "en", "para", "un", "una", "el", "los", "las", 
+        "y", "al", "del", "o", "u", "su", "sus", "por", "como", "plana", "plancha"
+    }
+    query_keywords = {w for w in query_words if w not in stop_words and len(w) > 2}
+
+    best_item = None
+    best_score = -1.0
+
+    for r in resultados:
+        nombre_clean = r["nombre"].lower().replace(",", " ").replace(".", " ").replace(";", " ")
+        nombre_words = set(nombre_clean.split())
+        nombre_keywords = {w for w in nombre_words if w not in stop_words and len(w) > 2}
+        
+        # Calcular coincidencia de palabras clave (con soporte de prefijos para tolerar typos)
+        overlap = 0
+        for qw in query_keywords:
+            for nw in nombre_keywords:
+                if qw in nw or nw in qw or (len(qw) > 3 and len(nw) > 3 and qw[:4] == nw[:4]):
+                    overlap += 1
+                    break
+        
+        # Puntuación final combinada: similitud base + 0.15 por palabra clave coincidente
+        score = r["similitud"] + (overlap * 0.15)
+        
+        if score > best_score:
+            best_score = score
+            best_item = r
+
+    # Usamos un umbral mucho más bajo (0.55) para el agente de visión
+    umbral = 0.55
+    if best_item:
+        if best_item["similitud"] < umbral:
+            logger.debug(
+                "Match de visión '%s' descartado: similitud base %.3f < umbral %.2f",
+                best_item["nombre"], best_item["similitud"], umbral,
+            )
+            return None
+
+    return best_item
+
+
 # ── Corrección de ingredientes con datos verificados ─────────────────────────
 
 def corregir_ingrediente(ingrediente: dict) -> dict:

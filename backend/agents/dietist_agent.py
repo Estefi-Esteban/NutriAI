@@ -153,11 +153,11 @@ class DietistAgent:
         # Corrección RAG — reemplaza estimaciones del LLM con datos reales de ChromaDB
         menu_dia_corregido = validar_y_corregir_dia(menu_dia)
 
-        return menu_dia_corregido
+        # Detector de alérgenos automático
+        from backend.utils.allergen_detector import detectar_alergenos_dia
+        menu_con_alergenos = detectar_alergenos_dia(menu_dia_corregido)
 
-    # ------------------------------------------------------------------
-    # Método de conveniencia — semana completa
-    # ------------------------------------------------------------------
+        return menu_con_alergenos
 
     def generar_semana(
         self,

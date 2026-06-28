@@ -4,6 +4,7 @@ import {
   TouchableOpacity, ActivityIndicator, Alert,
   KeyboardAvoidingView, Platform
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Spacing, Radius } from '../../constants/theme';
 import { api } from '../../services/api';
@@ -54,6 +55,7 @@ const SUGGESTIONS = [
 
 // ─── Main Screen ──────────────────────────────────────────────────────────
 export default function AsistenteScreen() {
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -181,7 +183,7 @@ export default function AsistenteScreen() {
       )}
 
       {/* Input Area */}
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <TextInput
           style={styles.input}
           placeholder="Pregunta algo sobre nutrición..."

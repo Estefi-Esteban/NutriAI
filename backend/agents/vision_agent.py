@@ -23,7 +23,7 @@ from typing import Optional
 import httpx
 from backend.config import GROQ_API_KEY
 from backend.agents.prompts.prompt_loader import load_prompt
-from backend.rag.food_search import buscar_mejor_match
+from backend.rag.food_search import buscar_mejor_match_vision
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +131,7 @@ class VisionAgent:
                 )
                 respuesta.raise_for_status()
                 contenido = respuesta.json()["choices"][0]["message"]["content"]
+                logger.info("VisionAgent: respuesta cruda del LLM: %s", contenido)
                 return self._parsear_deteccion(contenido)
 
             except httpx.HTTPStatusError as e:
@@ -177,10 +178,50 @@ class VisionAgent:
     # Paso 2: Enriquecimiento con ChromaDB
     # ------------------------------------------------------------------
 
+    def _normalizar_nombre_alimento(self, nombre: str) -> str:
+        """
+        Simplifica el nombre para mejorar el match con Qdrant.
+        'pollo a la plancha con limón' -> 'pollo'
+        'arroz integral cocido' -> 'arroz integral'
+        """
+        # Eliminar métodos de cocción y acompañamientos comunes
+        cocciones = [
+            "a la plancha", "al vapor", "cocido", "cocida", "frito", "frita",
+            "asado", "asada", "hervido", "hervida", "al horno", "crudo", "cruda",
+            "con limón", "con aceite", "aliñado", "aliñada", "en salsa"
+        ]
+        nombre_limpio = nombre.lower().strip()
+        for coccion in cocciones:
+            nombre_limpio = nombre_limpio.replace(coccion, "").strip()
+        
+        # Eliminar palabras de conexión comunes
+        palabras_conexion = ["con", "de", "y", "en", "al"]
+        for pc in palabras_conexion:
+            nombre_limpio = re.sub(rf"\b{pc}\b", "", nombre_limpio).strip()
+            
+        # Eliminar palabras muy cortas
+        nombre_limpio = re.sub(r'\b\w{1,2}\b', '', nombre_limpio).strip()
+        # Eliminar espacios múltiples
+        nombre_limpio = re.sub(r"\s+", " ", nombre_limpio).strip()
+        
+        return nombre_limpio if nombre_limpio else nombre.lower()
+
+    def _extraer_valor_tolerante(self, alimento: dict, claves: list[str], default: float = 0.0) -> float:
+        for cl in claves:
+            if cl in alimento:
+                val = alimento[cl]
+                if val is not None:
+                    try:
+                        return float(val)
+                    except (ValueError, TypeError):
+                        pass
+        return default
+
     def _enriquecer_con_rag(self, alimentos_detectados: list[dict]) -> list[dict]:
         """
         Para cada alimento detectado, busca sus macros verificados en ChromaDB
-        y calcula los valores para la cantidad estimada.
+        y calcula los valores para la cantidad estimada. Si no encuentra match,
+        usa los macros estimados por el modelo como fallback.
         """
         resultado = []
 
@@ -205,8 +246,15 @@ class VisionAgent:
             }
 
             try:
-                match = buscar_mejor_match(nombre)
-                if match and match["similitud"] >= UMBRAL_CONFIANZA_RAG:
+                # Intentamos buscar con el nombre normalizado primero
+                nombre_norm = self._normalizar_nombre_alimento(nombre)
+                match = buscar_mejor_match_vision(nombre_norm)
+                
+                # Si no encuentra, intentamos con el nombre original
+                if match is None and nombre_norm != nombre.lower():
+                    match = buscar_mejor_match_vision(nombre)
+
+                if match and match["similitud"] >= 0.55:
                     factor = cantidad_g / 100.0
                     entrada["verificado_rag"] = True
                     entrada["nombre_rag"] = match["nombre"]
@@ -215,14 +263,23 @@ class VisionAgent:
                     entrada["proteinas_g"] = round(match["proteinas_100g"] * factor, 1)
                     entrada["carbos_g"] = round(match["carbos_100g"] * factor, 1)
                     entrada["grasas_g"] = round(match["grasas_100g"] * factor, 1)
+                    logger.info("VisionAgent: match RAG exitoso para '%s' -> '%s' (sim: %s)", nombre, match["nombre"], match["similitud"])
                 else:
-                    logger.info(
-                        "VisionAgent: sin match RAG para '%s' (similitud: %s)",
-                        nombre,
-                        match["similitud"] if match else "N/A",
-                    )
+                    # Fallback con estimaciones del modelo de visión
+                    logger.info("VisionAgent: sin match RAG para '%s'. Usando fallback de estimaciones del LLM.", nombre)
+                    entrada["verificado_rag"] = False
+                    entrada["kcal"] = round(self._extraer_valor_tolerante(alimento, ["kcal_estimado", "kcal_estimada", "kcal", "calorias", "calorías"]), 1)
+                    entrada["proteinas_g"] = round(self._extraer_valor_tolerante(alimento, ["proteinas_estimadas", "proteinas_estimadas_g", "proteinas_g", "proteinas", "proteína", "proteínas"]), 1)
+                    entrada["carbos_g"] = round(self._extraer_valor_tolerante(alimento, ["carbos_estimados", "carbos_estimados_g", "carbos_g", "carbos", "carbohidratos"]), 1)
+                    entrada["grasas_g"] = round(self._extraer_valor_tolerante(alimento, ["grasas_estimadas", "grasas_estimadas_g", "grasas_g", "grasas", "grasa"]), 1)
             except Exception as e:
-                logger.warning("VisionAgent: error RAG para '%s': %s", nombre, e)
+                logger.warning("VisionAgent: error RAG para '%s': %s. Usando fallback de estimaciones del LLM.", nombre, e)
+                # Fallback en caso de excepción
+                entrada["verificado_rag"] = False
+                entrada["kcal"] = round(self._extraer_valor_tolerante(alimento, ["kcal_estimado", "kcal_estimada", "kcal", "calorias", "calorías"]), 1)
+                entrada["proteinas_g"] = round(self._extraer_valor_tolerante(alimento, ["proteinas_estimadas", "proteinas_estimadas_g", "proteinas_g", "proteinas", "proteína", "proteínas"]), 1)
+                entrada["carbos_g"] = round(self._extraer_valor_tolerante(alimento, ["carbos_estimados", "carbos_estimados_g", "carbos_g", "carbos", "carbohidratos"]), 1)
+                entrada["grasas_g"] = round(self._extraer_valor_tolerante(alimento, ["grasas_estimadas", "grasas_estimadas_g", "grasas_g", "grasas", "grasa"]), 1)
 
             resultado.append(entrada)
 
@@ -233,7 +290,7 @@ class VisionAgent:
     # ------------------------------------------------------------------
 
     def _calcular_totales(self, alimentos: list[dict]) -> dict:
-        """Suma los macros de todos los alimentos verificados por RAG."""
+        """Suma los macros de todos los alimentos (verificados y estimados como fallback)."""
         totales = {
             "kcal": 0.0,
             "proteinas_g": 0.0,
@@ -243,12 +300,12 @@ class VisionAgent:
         }
 
         for a in alimentos:
-            if a["verificado_rag"]:
-                totales["kcal"] += a["kcal"] or 0.0
-                totales["proteinas_g"] += a["proteinas_g"] or 0.0
-                totales["carbos_g"] += a["carbos_g"] or 0.0
-                totales["grasas_g"] += a["grasas_g"] or 0.0
-            else:
+            # Ahora sumamos todos los alimentos (estén verificados o no por RAG)
+            totales["kcal"] += a["kcal"] or 0.0
+            totales["proteinas_g"] += a["proteinas_g"] or 0.0
+            totales["carbos_g"] += a["carbos_g"] or 0.0
+            totales["grasas_g"] += a["grasas_g"] or 0.0
+            if not a["verificado_rag"]:
                 totales["alimentos_sin_datos"].append(a["nombre_detectado"])
 
         # Redondear

@@ -345,9 +345,18 @@ def generar_pdf_reporte(
     story.append(t_evol)
     story.append(Spacer(1, 10))
 
-    # ── SECCIÓN 6: RESPALDO DE EVIDENCIA CIENTÍFICA (RAG) ───────────────────
+    # ── SECCIÓN 6: RECOMENDACIONES DE HÁBITOS Y COCINA ────────────────────
+    story.append(Paragraph("6. Recomendaciones de Hábitos y Técnicas de Cocina", style_h1))
+    
+    recs_perfil = obtener_recomendaciones_perfil(perfil)
+    for rec in recs_perfil:
+        story.append(Paragraph(f"• {rec}", style_body))
+        story.append(Spacer(1, 4))
+    story.append(Spacer(1, 10))
+
+    # ── SECCIÓN 7: RESPALDO DE EVIDENCIA CIENTÍFICA (RAG) ───────────────────
     if evidencias:
-        story.append(Paragraph("6. Referencias Clínicas y Evidencia de Respaldo", style_h1))
+        story.append(Paragraph("7. Referencias Clínicas y Evidencia de Respaldo", style_h1))
         
         elements_ev = []
         for idx, ev in enumerate(evidencias):

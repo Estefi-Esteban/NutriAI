@@ -44,7 +44,7 @@ def _imagen_dummy() -> bytes:
 
 
 def _deteccion_mock() -> dict:
-    """Respuesta simulada del modelo visual."""
+    """Respuesta simulada del modelo visual, ahora con macros estimados."""
     return {
         "alimentos_detectados": [
             {
@@ -52,18 +52,30 @@ def _deteccion_mock() -> dict:
                 "cantidad_estimada_g": 150,
                 "confianza": "ALTA",
                 "notas": None,
+                "kcal_estimado": 165,
+                "proteinas_estimadas": 31.0,
+                "carbos_estimados": 0.0,
+                "grasas_estimadas": 3.6
             },
             {
                 "nombre": "arroz blanco cocido",
                 "cantidad_estimada_g": 180,
                 "confianza": "ALTA",
                 "notas": None,
+                "kcal_estimado": 234,
+                "proteinas_estimadas": 4.5,
+                "carbos_estimados": 50.4,
+                "grasas_estimadas": 0.5
             },
             {
                 "nombre": "tomate cherry",
                 "cantidad_estimada_g": 50,
                 "confianza": "MEDIA",
                 "notas": "pequeños, difícil estimar exactamente",
+                "kcal_estimado": 9,
+                "proteinas_estimadas": 0.5,
+                "carbos_estimados": 2.0,
+                "grasas_estimadas": 0.1
             },
         ],
         "descripcion_plato": "Plato de pollo con arroz y tomates cherry.",
@@ -148,7 +160,7 @@ class TestVisionAgentEnriquecimiento:
 
         alimentos = [{"nombre": "pollo", "cantidad_estimada_g": 150, "confianza": "ALTA", "notas": None}]
 
-        with patch("backend.agents.vision_agent.buscar_mejor_match", return_value=_match_rag_pollo()):
+        with patch("backend.agents.vision_agent.buscar_mejor_match_vision", return_value=_match_rag_pollo()):
             resultado = agente._enriquecer_con_rag(alimentos)
 
         assert resultado[0]["verificado_rag"] is True
@@ -159,26 +171,25 @@ class TestVisionAgentEnriquecimiento:
         from backend.agents.vision_agent import VisionAgent
         agente = VisionAgent.__new__(VisionAgent)
 
-        alimentos = [{"nombre": "alimento_raro", "cantidad_estimada_g": 100, "confianza": "BAJA", "notas": None}]
+        alimentos = [{"nombre": "alimento_raro", "cantidad_estimada_g": 100, "confianza": "BAJA", "notas": None, "kcal_estimado": 10.0}]
         match_bajo = {**_match_rag_pollo(), "similitud": 0.40}
-
-        with patch("backend.agents.vision_agent.buscar_mejor_match", return_value=match_bajo):
+        with patch("backend.agents.vision_agent.buscar_mejor_match_vision", return_value=match_bajo):
             resultado = agente._enriquecer_con_rag(alimentos)
 
         assert resultado[0]["verificado_rag"] is False
-        assert resultado[0]["kcal"] is None
+        assert resultado[0]["kcal"] == 10.0
 
     def test_no_enriquece_cuando_rag_devuelve_none(self):
         from backend.agents.vision_agent import VisionAgent
         agente = VisionAgent.__new__(VisionAgent)
 
-        alimentos = [{"nombre": "algo", "cantidad_estimada_g": 100, "confianza": "MEDIA", "notas": None}]
+        alimentos = [{"nombre": "algo", "cantidad_estimada_g": 100, "confianza": "MEDIA", "notas": None, "kcal_estimado": 25.0}]
 
-        with patch("backend.agents.vision_agent.buscar_mejor_match", return_value=None):
+        with patch("backend.agents.vision_agent.buscar_mejor_match_vision", return_value=None):
             resultado = agente._enriquecer_con_rag(alimentos)
 
         assert resultado[0]["verificado_rag"] is False
-
+        assert resultado[0]["kcal"] == 25.0
 
 class TestVisionAgentTotales:
     """Tests del cálculo de totales del plato."""
@@ -242,7 +253,7 @@ class TestVisionRouter:
         try:
             with (
                 patch("backend.agents.vision_agent.VisionAgent._detectar_alimentos", return_value=_deteccion_mock()),
-                patch("backend.agents.vision_agent.buscar_mejor_match", side_effect=rag_side_effects),
+                patch("backend.agents.vision_agent.buscar_mejor_match_vision", side_effect=rag_side_effects),
             ):
                 resp = client.post(
                     "/vision/analizar-plato",
@@ -310,7 +321,7 @@ class TestVisionRouter:
         try:
             with (
                 patch("backend.agents.vision_agent.VisionAgent._detectar_alimentos", return_value=_deteccion_mock()),
-                patch("backend.agents.vision_agent.buscar_mejor_match", side_effect=rag_side_effects),
+                patch("backend.agents.vision_agent.buscar_mejor_match_vision", side_effect=rag_side_effects),
             ):
                 resp = client.post(
                     "/vision/analizar-plato",
@@ -324,14 +335,14 @@ class TestVisionRouter:
         assert len(data["disclaimer"]) > 20
 
     def test_alimentos_sin_rag_aparecen_en_sin_datos(self, client):
-        """Alimentos sin match RAG deben aparecer en totales.alimentos_sin_datos."""
+        """Alimentos sin match RAG deben aparecer en totales.alimentos_sin_datos y usar fallback."""
         imagen = _imagen_dummy()
         self._override_auth(app)
 
         try:
             with (
                 patch("backend.agents.vision_agent.VisionAgent._detectar_alimentos", return_value=_deteccion_mock()),
-                patch("backend.agents.vision_agent.buscar_mejor_match", return_value=None),
+                patch("backend.agents.vision_agent.buscar_mejor_match_vision", return_value=None),
             ):
                 resp = client.post(
                     "/vision/analizar-plato",
@@ -342,4 +353,5 @@ class TestVisionRouter:
 
         data = resp.json()
         assert len(data["totales"]["alimentos_sin_datos"]) == 3
-        assert data["totales"]["kcal"] == 0.0
+        # Esperamos la suma de las estimaciones del mock (165 + 234 + 9 = 408)
+        assert data["totales"]["kcal"] == 408.0

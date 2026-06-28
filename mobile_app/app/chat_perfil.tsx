@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { GlassCard } from '../components/GlassCard';
 import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Message {
   role: 'user' | 'ai';
@@ -13,6 +14,7 @@ interface Message {
 }
 
 export default function ChatPerfilScreen() {
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -202,7 +204,7 @@ export default function ChatPerfilScreen() {
             )}
           </ScrollView>
 
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <TextInput
               style={styles.input}
               placeholder="Escribe tu respuesta aquí..."
