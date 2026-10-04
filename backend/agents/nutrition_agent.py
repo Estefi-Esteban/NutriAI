@@ -36,7 +36,7 @@ class NutritionAgent:
         resultado = agente.analizar(perfil=datos_usuario, calculos=resultado_calculador)
     """
 
-    MODEL = "llama-3.3-70b-versatile"
+    MODEL = "openai/gpt-oss-120b"
     TEMPERATURE = 0.3   # Baja temperatura para análisis consistente y clínico
 
     def __init__(self):
@@ -92,9 +92,14 @@ class NutritionAgent:
         obj = perfil.get("objetivo_principal")
         if obj:
             query_parts.append(str(obj))
-        pats = perfil.get("patologias")
-        if pats:
-            query_parts.extend([str(p) for p in pats])
+            
+        patologias = list(dict.fromkeys(
+            (perfil.get("patologias") or [])
+            + (perfil.get("patologias_activas") or [])
+        ))
+
+        if patologias:
+            query_parts.extend([str(p) for p in patologias])
         
         query_rag = " ".join(query_parts) if query_parts else "nutrition healthy guidelines"
         
@@ -185,8 +190,6 @@ if __name__ == "__main__":
     import sys
     import io
     from backend.utils.nutrition_calculator import calcular_todo
-
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
     print("=" * 60)
     print("  TEST — NutritionAgent con perfil de Marta")

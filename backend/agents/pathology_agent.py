@@ -35,7 +35,7 @@ ALERTAS_A_PATOLOGIAS = {
 
 class PathologyAgent:
 
-    MODEL = "llama-3.3-70b-versatile"
+    MODEL = "openai/gpt-oss-120b"
     TEMPERATURE = 0.1  # máximo rigor — esto es protocolo médico
 
     def __init__(self):
@@ -53,29 +53,38 @@ class PathologyAgent:
         alertas_clinicas: list[dict] | None = None,
     ) -> dict:
         """
-        Genera el protocolo nutricional basado en patologías y alertas.
+        Genera el protocolo nutricional basado en patologías declaradas
+        y alertas clínicas.
 
-        Args:
-            perfil: datos del usuario
-            patologias_declaradas: lista de patologías del perfil del usuario
-            alertas_clinicas: alertas del ClinicalAgent (opcional)
-
-        Returns:
-            Dict con restricciones, alimentos prohibidos/prioritarios
-            y notas para el dietista
+        Las patologías declaradas por el usuario se consideran activas
+        para el protocolo. Las patologías sugeridas por alertas clínicas
+        se mantienen separadas y no se consideran diagnósticos confirmados.
         """
-        # Enriquecer con patologías sugeridas por las alertas clínicas
-        patologias_sugeridas = self._patologias_de_alertas(alertas_clinicas or [])
-        todas_patologias = list(set(patologias_declaradas + patologias_sugeridas))
+        # Patologías declaradas por el usuario.
+        patologias_declaradas = list(dict.fromkeys(
+            patologias_declaradas or []
+        ))
 
-        # Si no hay nada relevante, devolvemos protocolo vacío directamente
-        if not todas_patologias:
+        # Patologías sugeridas a partir de alertas clínicas.
+        # Una alerta analítica no constituye por sí misma un diagnóstico.
+        patologias_sugeridas = list(dict.fromkeys(
+            self._patologias_de_alertas(alertas_clinicas or [])
+        ))
+
+        # Solo las patologías declaradas se consideran activas
+        # para construir el protocolo nutricional.
+        patologias_activas = patologias_declaradas.copy()
+
+        # Si no hay patologías declaradas ni alertas relevantes,
+        # devolvemos protocolo vacío.
+        if not patologias_activas and not patologias_sugeridas:
             return self._protocolo_vacio()
 
         entrada = {
             "patologias_declaradas": patologias_declaradas,
+            "patologias_activas": patologias_activas,
+            "patologias_sugeridas": patologias_sugeridas,
             "alertas_clinicas": alertas_clinicas or [],
-            "patologias_combinadas": todas_patologias,
             "perfil": {
                 "sexo": perfil.get("sexo"),
                 "edad": perfil.get("edad"),
@@ -85,12 +94,21 @@ class PathologyAgent:
 
         mensajes = [
             SystemMessage(content=self.system_prompt),
-            HumanMessage(content=json.dumps(entrada, ensure_ascii=False, indent=2)),
+            HumanMessage(
+                content=json.dumps(
+                    entrada,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            ),
         ]
 
         logger.info(
-            "PathologyAgent: analizando patologías %s", todas_patologias
+            "PathologyAgent: declaradas=%s, sugeridas=%s",
+            patologias_declaradas,
+            patologias_sugeridas,
         )
+
         respuesta = self.llm.invoke(mensajes)
         return self._parsear_respuesta(respuesta.content)
 
@@ -139,3 +157,4 @@ class PathologyAgent:
 
         logger.error("PathologyAgent: no se pudo parsear la respuesta")
         raise ValueError("El modelo no devolvió JSON válido en el análisis de patologías")
+

@@ -1,11 +1,6 @@
 import os
-import sys
-import io
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-
-# Asegurar encoding UTF-8 en Windows
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 load_dotenv()
 

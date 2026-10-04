@@ -15,25 +15,24 @@ logger = logging.getLogger(__name__)
 
 GUIAS_CLINICAS = [
     {
-        "nombre": "Guia SEEDO Obesidad 2022",
-        "url": "https://www.seedo.es/images/site/documentacion/consenso/Consenso_SEEDO_2022.pdf",
+        "nombre": "Guía SEEDO GIRO 2.0 — Obesidad",
+        "url": "https://www.seedo.es/images/site/giro/GUIA-GIRO-2a-edicin_26NOV2024.pdf",
         "fuente": "SEEDO",
-        "año": 2022,
+        "año": 2024,
     },
     {
-        "nombre": "Guia Diabetes SEEN 2022",
-        "url": "https://seen.es/docs/grupos-trabajo/diabetes/guia-diabetes-seen-2022.pdf",
+        "nombre": "Abordaje integral de las personas con diabetes tipo 2",
+        "url": "https://www.seen.es/",
         "fuente": "SEEN",
         "año": 2022,
     },
     {
-        "nombre": "Guia Dislipemia SEC 2021",
-        "url": "https://secardiologia.es/images/secciones/riesgo-cardiovascular/guia-dislipemias-2021.pdf",
+        "nombre": "Actualización 2025 de la Guía ESC 2019 sobre el manejo de las dislipemias",
+        "url": "https://secardiologia.es/images/2024/Gu%C3%ADas/Guia-ESC-2025-actualizacio%CC%81n-manejo-dislipemias.pdf",
         "fuente": "SEC",
-        "año": 2021,
+        "año": 2025,
     },
 ]
-
 
 class PDFProcessor:
     def __init__(self, chunk_words: int = 500, overlap_words: int = 50):

@@ -1,8 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Enum, Text, JSON
-from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
 
@@ -51,7 +50,7 @@ class User(Base):
     google_id     = Column(String, unique=True, nullable=True, index=True)
     auth_provider = Column(String, default="email")
     
-    fecha_creacion = Column(DateTime, default=datetime.utcnow)
+    fecha_creacion = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relaciones
     perfil = relationship("UserProfile", back_populates="usuario", uselist=False, cascade="all, delete-orphan")
@@ -93,7 +92,7 @@ class UserProfile(Base):
     medicacion = Column(Text, nullable=True)
     patologias = Column(JSON, default=list, nullable=True)
 
-    fecha_actualizacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    fecha_actualizacion = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relaciones
     usuario = relationship("User", back_populates="perfil")
@@ -112,7 +111,7 @@ class NutritionPlan(Base):
     
     plan_semanal = Column(JSON, nullable=False)
     
-    fecha_generacion = Column(DateTime, default=datetime.utcnow)
+    fecha_generacion = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     activo = Column(Boolean, default=True)
 
     # Relaciones
@@ -141,7 +140,7 @@ class ProtocoloNutricional(Base):
     notas_dietista = Column(Text, nullable=True)
     # Instrucciones en texto libre para el prompt del Dietista
 
-    fecha_generacion = Column(DateTime, default=datetime.utcnow)
+    fecha_generacion = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("User")
 
@@ -160,7 +159,7 @@ class RecomendacionSuplementos(Base):
     notas = Column(Text, nullable=True)
     resumen = Column(Text, nullable=True)
 
-    fecha_generacion = Column(DateTime, default=datetime.utcnow)
+    fecha_generacion = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("User")
 
@@ -172,7 +171,7 @@ class ChatMessage(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     rol = Column(String, nullable=False)       # "user" o "assistant"
     contenido = Column(Text, nullable=False)
-    fecha = Column(DateTime, default=datetime.utcnow)
+    fecha = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("User")
 
@@ -185,7 +184,7 @@ class RefreshToken(Base):
     token = Column(String, unique=True, index=True, nullable=False)
     fecha_expiracion = Column(DateTime, nullable=False)
     revocado = Column(Boolean, default=False, nullable=False)
-    fecha_creacion = Column(DateTime, default=datetime.utcnow, nullable=False)
+    fecha_creacion = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     usuario = relationship("User")
 

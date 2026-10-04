@@ -46,91 +46,122 @@ def _to_enum(enum_class, value):
 
 
 def _normalizar_objetivo(valor: str) -> str:
-    """
-    Convierte el texto libre del agente al valor exacto del Enum ObjetivoPrincipal.
-    """
     if not valor:
         return "mantenimiento"
-    v = valor.lower().strip()
 
-    tiene_perder = any(x in v for x in ["perder", "adelgaz", "bajar", "reducir grasa"])
-    tiene_musculo = any(x in v for x in ["ganar", "musculo", "músculo", "masa muscular"])
+    v = str(valor).lower().strip()
 
-    if tiene_perder and tiene_musculo:
-        return "recomposicion_corporal"
-    if any(x in v for x in ["recomposic"]):
-        return "recomposicion_corporal"
-    if tiene_perder:
-        return "perder_grasa"
-    if tiene_musculo:
-        return "ganar_musculo"
-    if any(x in v for x in ["volumen", "bulk", "voluminiz"]):
-        return "volumen"
-    if any(x in v for x in ["mantener", "mantenimiento", "salud"]):
-        return "mantenimiento"
+    valores_validos = {
+        "perder_grasa",
+        "ganar_musculo",
+        "recomposicion_corporal",
+        "mantenimiento",
+        "volumen",
+    }
 
-    return "mantenimiento"  # default seguro
+    if v in valores_validos:
+        return v
+
+    raise ValueError(
+        f"Objetivo principal no válido: '{valor}'. "
+        f"Valores permitidos: {sorted(valores_validos)}"
+    )
 
 
 def _normalizar_dieta(valor: str) -> str:
-    """
-    Convierte el texto libre del agente al valor exacto del Enum DietaTipo.
-    """
+    valores_validos = {
+        "omnivoro",
+        "vegetariano",
+        "vegano",
+        "sin_gluten",
+        "cetogenica",
+        "paleo",
+        "otro",
+    }
+
     if not valor:
-        return "omnivoro"
-    v = valor.lower().strip()
+        raise ValueError("dieta_tipo es obligatorio")
 
-    if any(x in v for x in ["vegano", "vegan"]):
-        return "vegano"
-    if "vegetariano" in v:
-        return "vegetariano"
-    if any(x in v for x in ["gluten"]):
-        return "sin_gluten"
-    if any(x in v for x in ["cetog", "keto"]):
-        return "cetogenica"
-    if "paleo" in v:
-        return "paleo"
+    v = str(valor).lower().strip()
 
-    return "omnivoro"  # default seguro
+    if v not in valores_validos:
+        raise ValueError(
+            f"Tipo de dieta no válido: '{valor}'. "
+            f"Valores permitidos: {sorted(valores_validos)}"
+        )
+
+    return v
 
 
 def _normalizar_actividad(valor: str) -> str:
-    """
-    Convierte el texto libre del agente al valor exacto del Enum NivelActividad.
-    """
+    valores_validos = {
+        "sedentario",
+        "ligero",
+        "moderado",
+        "activo",
+        "muy_activo",
+    }
+
     if not valor:
-        return "sedentario"
-    v = valor.lower().strip()
+        raise ValueError("nivel_actividad es obligatorio")
 
-    if any(x in v for x in ["muy activo", "muy_activo", "intenso", "alta"]):
-        return "muy_activo"
-    if any(x in v for x in ["activo", "frecuente"]):
-        return "activo"
-    if any(x in v for x in ["moderado", "media"]):
-        return "moderado"
-    if any(x in v for x in ["ligero", "leve", "poco"]):
-        return "ligero"
+    v = str(valor).lower().strip()
 
-    return "sedentario"  # default cuando dice "no hago ejercicio"
+    if v not in valores_validos:
+        raise ValueError(
+            f"Nivel de actividad no válido: '{valor}'. "
+            f"Valores permitidos: {sorted(valores_validos)}"
+        )
 
+    return v
 
 def _normalizar_tipo_entrenamiento(valor: str) -> str:
-    """
-    Convierte el texto libre del agente al valor exacto del Enum TipoEntrenamiento.
-    """
+    valores_validos = {
+        "fuerza",
+        "cardio",
+        "mixto",
+        "ninguno",
+    }
+
     if not valor:
-        return "ninguno"
-    v = valor.lower().strip()
+        raise ValueError("tipo_entrenamiento es obligatorio")
 
-    if any(x in v for x in ["fuerza", "pesas", "musculaci", "resistencia"]):
-        return "fuerza"
-    if any(x in v for x in ["cardio", "correr", "aerobic"]):
-        return "cardio"
-    if any(x in v for x in ["mixto", "combinado", "funcional"]):
-        return "mixto"
+    v = str(valor).lower().strip()
 
-    return "ninguno"
+    if v not in valores_validos:
+        raise ValueError(
+            f"Tipo de entrenamiento no válido: '{valor}'. "
+            f"Valores permitidos: {sorted(valores_validos)}"
+        )
 
+    return v
+
+
+def _normalizar_velocidad(valor: str | None) -> str | None:
+    if not valor:
+        return None
+
+    v = str(valor).lower().strip()
+
+    equivalencias = {
+        "lento": "lento",
+        "lenta": "lento",
+
+        "moderado": "moderado",
+        "moderada": "moderado",
+
+        "rapido": "rapido",
+        "rápido": "rapido",
+        "rapida": "rapido",
+        "rápida": "rapido",
+    }
+
+    if v in equivalencias:
+        return equivalencias[v]
+
+    raise ValueError(
+        f"Velocidad de objetivo no reconocida: '{valor}'."
+    )
 
 # ---------------------------------------------------------------------------
 # crear_usuario
@@ -177,88 +208,94 @@ def crear_usuario(
 
 def guardar_perfil(db: Session, user_id: int, datos: dict) -> UserProfile:
     """
-    Crea o actualiza el perfil de un usuario en 'user_profiles'.
-
-    Si ya existe un perfil para ese user_id se reemplaza el registro
-    completo (delete + insert) para evitar conflictos de campos parciales.
-
-    Parámetros:
-        db      — sesión SQLAlchemy activa
-        user_id — id del usuario al que pertenece el perfil
-        datos   — dict con los campos devueltos por el agente conversacional
-
-    Devuelve:
-        El objeto UserProfile guardado con su id asignado por la BD.
-
-    Conversión de Enums:
-        Los campos objetivo_principal, velocidad_objetivo, nivel_actividad,
-        tipo_entrenamiento y dieta_tipo llegan como strings desde el agente
-        y se convierten al Enum correcto antes de persistirlos.
+    Crea o actualiza el perfil de un usuario.
     """
-    # Si ya existe un perfil previo para este usuario, lo borramos primero
-    perfil_existente = (
-        db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
-    )
-    if perfil_existente:
-        db.delete(perfil_existente)
-        db.flush()  # ejecuta el DELETE antes del INSERT siguiente
 
-    perfil = UserProfile(
-        user_id=user_id,
-
-        # ── Biométricos ─────────────────────────────────────────────────────
-        peso_kg=float(datos["peso_kg"]),
-        altura_cm=float(datos["altura_cm"]),
-        edad=int(datos["edad"]),
-        sexo=datos["sexo"],
-        porcentaje_grasa=(
-            float(datos["porcentaje_grasa"])
-            if datos.get("porcentaje_grasa") is not None
-            else None
-        ),
-
-        # ── Objetivos ───────────────────────────────────────────────────────
-        objetivo_principal=_to_enum(
-            ObjetivoPrincipal,
-            _normalizar_objetivo(datos["objetivo_principal"])
-        ),
-        objetivo_secundario=datos.get("objetivo_secundario"),
-        velocidad_objetivo=(
-            _to_enum(VelocidadObjetivo, datos["velocidad_objetivo"])
-            if datos.get("velocidad_objetivo")
-            else None
-        ),
-
-        # ── Actividad ───────────────────────────────────────────────────────
-        nivel_actividad=_to_enum(
-            NivelActividad,
-            _normalizar_actividad(datos.get("nivel_actividad", ""))
-        ),
-        dias_entrenamiento=int(datos.get("dias_entrenamiento") or 0),
-        tipo_entrenamiento=_to_enum(
-            TipoEntrenamiento,
-            _normalizar_tipo_entrenamiento(datos.get("tipo_entrenamiento", ""))
-        ),
-
-        # ── Preferencias ────────────────────────────────────────────────────
-        dieta_tipo=_to_enum(
-            DietaTipo,
-            _normalizar_dieta(datos.get("dieta_tipo", ""))
-        ),
-        alergias=datos.get("alergias", []),
-        intolerancias=datos.get("intolerancias", []),
-        presupuesto_semanal=float(datos["presupuesto_semanal"]) if datos.get("presupuesto_semanal") else None,
-        tiempo_cocina_min=int(datos["tiempo_cocina_min"]),
-        personas_en_casa=int(datos.get("personas_en_casa", 1)),
-
-        # ── Estado de salud ─────────────────────────────────────────────────
-        medicacion=datos.get("medicacion"),
-        patologias=datos.get("patologias", []),
+    perfil = (
+        db.query(UserProfile)
+        .filter(UserProfile.user_id == user_id)
+        .first()
     )
 
-    db.add(perfil)
+    if perfil is None:
+        perfil = UserProfile(user_id=user_id)
+        db.add(perfil)
+
+    perfil.peso_kg = float(datos["peso_kg"])
+    perfil.altura_cm = float(datos["altura_cm"])
+    perfil.edad = int(datos["edad"])
+    perfil.sexo = datos["sexo"]
+
+    porcentaje_grasa = datos.get("porcentaje_grasa")
+    perfil.porcentaje_grasa = (
+        float(porcentaje_grasa)
+        if porcentaje_grasa is not None
+        else None
+    )
+
+    perfil.objetivo_principal = _to_enum(
+        ObjetivoPrincipal,
+        _normalizar_objetivo(datos["objetivo_principal"])
+    )
+
+    perfil.objetivo_secundario = datos.get("objetivo_secundario")
+
+    velocidad = datos.get("velocidad_objetivo")
+    perfil.velocidad_objetivo = (
+        _to_enum(VelocidadObjetivo, velocidad)
+        if velocidad
+        else None
+    )
+
+    perfil.nivel_actividad = _to_enum(
+        NivelActividad,
+        _normalizar_actividad(
+            datos.get("nivel_actividad", "")
+        )
+    )
+
+    perfil.dias_entrenamiento = int(
+        datos.get("dias_entrenamiento") or 0
+    )
+
+    perfil.tipo_entrenamiento = _to_enum(
+        TipoEntrenamiento,
+        _normalizar_tipo_entrenamiento(
+            datos.get("tipo_entrenamiento", "")
+        )
+    )
+
+    perfil.dieta_tipo = _to_enum(
+        DietaTipo,
+        _normalizar_dieta(
+            datos.get("dieta_tipo", "")
+        )
+    )
+
+    perfil.alergias = datos.get("alergias", [])
+    perfil.intolerancias = datos.get("intolerancias", [])
+
+    presupuesto = datos.get("presupuesto_semanal")
+    perfil.presupuesto_semanal = (
+        float(presupuesto)
+        if presupuesto is not None
+        else None
+    )
+
+    perfil.tiempo_cocina_min = int(
+        datos["tiempo_cocina_min"]
+    )
+
+    perfil.personas_en_casa = int(
+        datos.get("personas_en_casa") or 1
+    )
+
+    perfil.medicacion = datos.get("medicacion")
+    perfil.patologias = datos.get("patologias", [])
+
     db.commit()
     db.refresh(perfil)
+
     return perfil
 
 
@@ -289,3 +326,4 @@ def obtener_perfil(db: Session, user_id: int) -> UserProfile | None:
         .filter(UserProfile.user_id == user_id)
         .first()
     )
+

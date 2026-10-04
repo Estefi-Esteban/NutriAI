@@ -3,7 +3,7 @@ test_allergen_detector.py
 -------------------------
 Pruebas unitarias para el detector de alérgenos automático.
 """
-
+import os
 from backend.utils.allergen_detector import detectar_alergenos_texto, detectar_alergenos_comida, detectar_alergenos_dia
 
 def test_detectar_alergenos_texto():

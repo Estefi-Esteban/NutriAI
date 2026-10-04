@@ -106,6 +106,96 @@ RANGOS_REFERENCIA = {
     "pcr":           {"min": 0,    "max": 1.0,  "unidad": "mg/L"},
 }
 
+def evaluar_valores_analitica(valores: dict, sexo: str | None = None) -> dict:
+    """
+    Compara los valores analíticos extraídos con los rangos de referencia
+    internos de NutriAI.
+
+    Importante:
+    - Estos rangos son orientativos y pueden variar según el laboratorio.
+    - La función no realiza diagnósticos.
+    - Devuelve únicamente una clasificación numérica respecto a los rangos
+      configurados.
+    """
+    resultados = {}
+
+    sexo_normalizado = str(sexo or "").lower().strip()
+
+    for marcador, valor in valores.items():
+        try:
+            valor = float(valor)
+        except (TypeError, ValueError):
+            continue
+
+        clave_rango = marcador
+
+        if marcador == "hdl":
+            if sexo_normalizado in {"hombre", "masculino", "m"}:
+                clave_rango = "hdl_hombre"
+            elif sexo_normalizado in {"mujer", "femenino", "f"}:
+                clave_rango = "hdl_mujer"
+            else:
+                resultados[marcador] = {
+                    "valor": valor,
+                    "estado": "sin_rango_sexo",
+                }
+                continue
+
+        elif marcador == "ferritina":
+            if sexo_normalizado in {"hombre", "masculino", "m"}:
+                clave_rango = "ferritina_h"
+            elif sexo_normalizado in {"mujer", "femenino", "f"}:
+                clave_rango = "ferritina_m"
+            else:
+                resultados[marcador] = {
+                    "valor": valor,
+                    "estado": "sin_rango_sexo",
+                }
+                continue
+
+        elif marcador == "acido_urico":
+            if sexo_normalizado in {"hombre", "masculino", "m"}:
+                clave_rango = "acido_urico_h"
+            elif sexo_normalizado in {"mujer", "femenino", "f"}:
+                clave_rango = "acido_urico_m"
+            else:
+                resultados[marcador] = {
+                    "valor": valor,
+                    "estado": "sin_rango_sexo",
+                }
+                continue
+
+        rango = RANGOS_REFERENCIA.get(clave_rango)
+
+        if not rango:
+            resultados[marcador] = {
+                "valor": valor,
+                "estado": "sin_rango",
+            }
+            continue
+
+        minimo = rango["min"]
+        maximo = rango["max"]
+
+        if valor < minimo:
+            estado = "bajo"
+        elif valor > maximo:
+            estado = "alto"
+        else:
+            estado = "normal"
+
+        resultados[marcador] = {
+            "valor": valor,
+            "estado": estado,
+            "rango_referencia": {
+                "min": minimo,
+                "max": maximo,
+                "unidad": rango["unidad"],
+            },
+        }
+
+    return resultados
+
 
 def parsear_valores_analitica(texto: str) -> dict:
     """

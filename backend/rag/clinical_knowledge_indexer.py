@@ -133,16 +133,34 @@ def indexar_todo() -> None:
             
             puntos = []
             for j, item in enumerate(lote):
-                # Generamos una ID UUID consistente usando el hash del texto o un random UUID
-                point_id = str(uuid.uuid4())
+                metadata = item["metadata"]
+
+                # ID determinista:
+                # el mismo documento/chunk siempre obtiene el mismo ID.
+                clave_estable = "|".join([
+                    str(metadata.get("fuente", "")),
+                    str(metadata.get("tipo", "")),
+                    str(metadata.get("doi", "")),
+                    str(metadata.get("titulo", "")),
+                    str(metadata.get("chunk_index", "")),
+                    item["texto"],
+                ])
+
+                point_id = str(
+                    uuid.uuid5(
+                        uuid.NAMESPACE_URL,
+                        clave_estable,
+                    )
+                )           
+
                 puntos.append(
                     PointStruct(
                         id=point_id,
                         vector=vectores[j],
                         payload={
                             "texto": item["texto"],
-                            **item["metadata"]
-                        }
+                            **metadata,
+                        },
                     )
                 )
                 

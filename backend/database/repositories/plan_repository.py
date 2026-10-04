@@ -8,16 +8,12 @@ Todas las operaciones de BD relacionadas con 'nutrition_plans' pasan por aquí.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
-
 from sqlalchemy.orm import Session
-
 from backend.database.models import NutritionPlan
 
-
 logger = logging.getLogger(__name__)
-
 
 # ---------------------------------------------------------------------------
 # guardar_plan
@@ -83,7 +79,7 @@ def guardar_plan(
         carbos_g=float(macros["carbos_g"]),
         grasas_g=float(macros["grasas_g"]),
         plan_semanal=menu_semana,
-        fecha_generacion=datetime.utcnow(),
+        fecha_generacion=datetime.now(timezone.utc),
         activo=True,
     )
 

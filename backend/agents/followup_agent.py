@@ -14,7 +14,7 @@ class FollowupAgent:
         Recibe el perfil del usuario y su plan activo para contextualizar el prompt del sistema.
         """
         self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             api_key=groq_api_key,
             temperature=0.7,
         )
@@ -103,3 +103,4 @@ class FollowupAgent:
     def reiniciar(self):
         """Reinicia la memoria del chat de seguimiento."""
         self.memory.clear()
+

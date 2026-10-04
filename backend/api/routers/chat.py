@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from backend.api.schemas.chat_schema import (
     IniciarChatResponse,
@@ -9,10 +9,11 @@ from backend.api.dependencies import (
     crear_sesion_chat,
     obtener_sesion_chat,
     eliminar_sesion_chat,
-    get_current_user,
 )
 from backend.api.rate_limiter import limitar_peticiones_ia
 from backend.database.models import User
+from backend.database.connection import SessionLocal
+from backend.database.repositories.user_repository import guardar_perfil
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -20,34 +21,43 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 @router.post("/iniciar", response_model=IniciarChatResponse)
 def iniciar_chat(current_user: User = Depends(limitar_peticiones_ia)):
     """
-    Inicia una nueva conversación con el Agente Perfil para el usuario autenticado.
-    Devuelve un session_id (que es el ID del usuario como string).
+    Inicia una nueva conversación con el agente de perfil.
     """
-    agente = crear_sesion_chat(current_user.id)
+    session_id, agente = crear_sesion_chat(current_user.id)
 
-    # El agente saluda primero, igual que en el test_agent.py
     resultado = agente.chat("Hola")
 
     return IniciarChatResponse(
-        session_id=str(current_user.id),
+        session_id=session_id,
         respuesta=resultado["respuesta"],
     )
 
 
 @router.post("/mensaje", response_model=MensajeChatResponse)
-def enviar_mensaje(payload: MensajeChatRequest, current_user: User = Depends(limitar_peticiones_ia)):
+def enviar_mensaje(
+    payload: MensajeChatRequest,
+    current_user: User = Depends(limitar_peticiones_ia),
+):
     """
-    Envía un mensaje a la sesión de chat activa del usuario autenticado.
-    Cuando el perfil queda completo, la respuesta incluye
-    perfil_completo=true y los datos extraídos.
+    Envía un mensaje a la sesión activa del usuario.
     """
-    agente = obtener_sesion_chat(current_user.id)
+
+    agente = obtener_sesion_chat(
+        payload.session_id,
+        current_user.id,
+    )
 
     resultado = agente.chat(payload.mensaje)
 
-    # Si el perfil se completó, podemos limpiar la sesión de memoria
     if resultado["perfil_completo"]:
-        eliminar_sesion_chat(current_user.id)
+        with SessionLocal() as db:
+            guardar_perfil(
+                db,
+                user_id=current_user.id,
+                datos=resultado["datos"],
+            )
+
+        eliminar_sesion_chat(payload.session_id)
 
     return MensajeChatResponse(
         respuesta=resultado["respuesta"],

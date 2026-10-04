@@ -13,31 +13,47 @@ from backend.utils.exceptions import SesionNoEncontradaError
 
 # Diccionario en memoria — vive mientras el servidor esté corriendo.
 # Clave: user_id (int) → Valor: instancia de ProfileAgent
-sesiones_chat: dict[int, ProfileAgent] = {}
+sesiones_chat: dict[str, dict] = {}
 
 
-def crear_sesion_chat(user_id: int) -> ProfileAgent:
+def crear_sesion_chat(user_id: int) -> tuple[str, ProfileAgent]:
     """
-    Crea una nueva sesión de chat con un ProfileAgent fresco para el usuario.
-    Devuelve el agente.
+    Crea una nueva sesión de chat asociada al usuario.
+    Devuelve el session_id y el agente.
     """
+    session_id = str(uuid.uuid4())
     agente = ProfileAgent()
-    sesiones_chat[user_id] = agente
-    return agente
+
+    sesiones_chat[session_id] = {
+        "user_id": user_id,
+        "agent": agente,
+    }
+
+    return session_id, agente
 
 
-def obtener_sesion_chat(user_id: int) -> ProfileAgent:
+def obtener_sesion_chat(session_id: str, user_id: int) -> ProfileAgent:
     """
-    Recupera el agente asociado a un user_id.
+    Recupera una sesión comprobando que pertenece al usuario autenticado.
     """
-    if user_id not in sesiones_chat:
-        raise SesionNoEncontradaError(f"Sesión de chat para el usuario '{user_id}' no encontrada o expirada. Por favor, inicie la sesión primero.")
-    return sesiones_chat[user_id]
+    sesion = sesiones_chat.get(session_id)
+
+    if sesion is None:
+        raise SesionNoEncontradaError(
+            f"La sesión '{session_id}' no existe o ha expirado."
+        )
+
+    if sesion["user_id"] != user_id:
+        raise SesionNoEncontradaError(
+            "La sesión no pertenece al usuario autenticado."
+        )
+
+    return sesion["agent"]
 
 
-def eliminar_sesion_chat(user_id: int) -> None:
-    """Limpia una sesión terminada para no acumular memoria indefinidamente."""
-    sesiones_chat.pop(user_id, None)
+def eliminar_sesion_chat(session_id: str) -> None:
+    """Elimina una sesión terminada."""
+    sesiones_chat.pop(session_id, None)
 
 
 

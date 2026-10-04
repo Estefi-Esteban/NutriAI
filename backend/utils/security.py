@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import secrets
 from typing import Optional, Union, Any
 import bcrypt
@@ -12,7 +12,6 @@ from backend.config import jwt_secret_key, jwt_algorithm, jwt_expire_minutes, go
 def crear_token_refresco() -> str:
     """Genera un token de refresco aleatorio y criptográficamente seguro."""
     return secrets.token_hex(32)
-
 
 
 def obtener_hash_password(password: str) -> str:
@@ -37,9 +36,9 @@ def crear_token_acceso(subject: Union[str, Any], expires_delta: Optional[timedel
     Por defecto expira según la configuración de la app o el delta provisto.
     """
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=jwt_expire_minutes)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=jwt_expire_minutes)
 
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, jwt_secret_key, algorithm=jwt_algorithm)

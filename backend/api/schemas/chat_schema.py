@@ -1,21 +1,21 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
 class IniciarChatResponse(BaseModel):
-    """Lo que devolvemos al iniciar una conversación nueva."""
+    """Respuesta al iniciar una conversación."""
     session_id: str
     respuesta: str
 
 
 class MensajeChatRequest(BaseModel):
-    """Lo que el cliente nos envía en cada mensaje."""
-    session_id: str
-    mensaje: str
+    """Mensaje enviado por el cliente."""
+    session_id: str = Field(..., min_length=1)
+    mensaje: str = Field(..., min_length=1)
 
 
 class MensajeChatResponse(BaseModel):
-    """Lo que devolvemos tras procesar un mensaje."""
+    """Respuesta del agente."""
     respuesta: str
     perfil_completo: bool
     datos: Optional[dict] = None

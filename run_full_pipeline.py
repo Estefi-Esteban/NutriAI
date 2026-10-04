@@ -22,16 +22,10 @@ Uso:
 """
 
 from __future__ import annotations
-
-import sys
-import io
 import json
 import time
 import logging
-
-# Forzar UTF-8 en la consola de Windows
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
+import os
 # ---------------------------------------------------------------------------
 # Logging básico para ver el progreso en consola
 # ---------------------------------------------------------------------------

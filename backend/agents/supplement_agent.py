@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 class SupplementAgent:
 
-    MODEL = "llama-3.3-70b-versatile"
+    MODEL = "openai/gpt-oss-120b"
     TEMPERATURE = 0.2  # bajo para respuestas consistentes y basadas en evidencia
 
     def __init__(self):
@@ -118,3 +118,4 @@ class SupplementAgent:
 
         logger.error("SupplementAgent: no se pudo parsear la respuesta del modelo")
         raise ValueError("El modelo no devolvió JSON válido en las recomendaciones de suplementación")
+

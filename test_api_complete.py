@@ -1,13 +1,8 @@
-import sys
-import io
 import uuid
 import time
+import os
 from unittest.mock import patch
 from fastapi.testclient import TestClient
-
-# Forzar codificación UTF-8
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 from backend.api.main import app
 from backend.api.dependencies import tareas_planes
 
@@ -80,7 +75,7 @@ PERFIL_TEST = {
     "intolerancias": [],
     "tiempo_cocina_min": 30,
     "personas_en_casa": 1,
-    "presupuesto_semanal_eur": 60,
+    "presupuesto_semanal": 60,
     "patologias": [],
     "medicacion": "",
     "tiene_analitica": False,
@@ -145,7 +140,7 @@ def test_full_system(mock_sleep):
     
     # 4. Generar plan en background (Autenticado)
     print("🚀 [4/8] POST /planes/generar...")
-    response = client.post("/planes/generar", json={"perfil": PERFIL_TEST}, headers=headers)
+    response = client.post("/planes/generar", json={}, headers=headers)
     assert response.status_code == 200, f"Error: {response.text}"
     gen_data = response.json()
     tarea_id = gen_data["tarea_id"]

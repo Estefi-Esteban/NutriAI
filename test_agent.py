@@ -1,9 +1,5 @@
 import json
-
-# Fix Unicode/emoji output on Windows terminals
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
+import os
 from backend.agents.profile_agent import ProfileAgent
 from backend.database.connection import SessionLocal
 from backend.database.repositories.user_repository import (

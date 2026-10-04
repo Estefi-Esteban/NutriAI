@@ -1,12 +1,6 @@
-import sys
-import io
 import os
 from pathlib import Path
 from fastapi.testclient import TestClient
-
-# Forzar codificación UTF-8
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 from backend.api.main import app
 
 def test_error_handlers_and_logging():
@@ -38,7 +32,7 @@ def test_error_handlers_and_logging():
 
     print("🚀 [2/3] Verificando SesionNoEncontradaError -> HTTP 404...")
     # Enviamos un mensaje de chat directamente sin llamar a /chat/iniciar primero
-    chat_response = client.post("/chat/mensaje", json={"mensaje": "Hola de prueba"}, headers=headers)
+    chat_response = client.post("/chat/mensaje", json={"session_id": str(reg_response.json()["user_id"]),"mensaje": "Hola de prueba"}, headers=headers)
     assert chat_response.status_code == 404, f"Se esperaba 404, se obtuvo {chat_response.status_code}"
     chat_data = chat_response.json()
     assert chat_data["error"] == "sesion_no_encontrada"
@@ -52,7 +46,7 @@ def test_error_handlers_and_logging():
     init_data = init_response.json()
     assert "session_id" in init_data
     
-    msg_response = client.post("/chat/mensaje", json={"mensaje": "Me llamo Esteban"}, headers=headers)
+    msg_response = client.post("/chat/mensaje", json={"session_id": init_data["session_id"],"mensaje": "Me llamo Esteban"}, headers=headers)
     assert msg_response.status_code == 200
     print("   ✅ Flujo feliz funciona correctamente tras inicializar sesión.")
 

@@ -1,11 +1,5 @@
-import sys
-import io
-
-# Forzar codificación UTF-8
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 print("🔍 Iniciando pruebas de verificación de la configuración de Autenticación...")
-
+import os
 # 1. Verificar importaciones
 print("   [1/2] Verificando importaciones de dependencias...")
 try:

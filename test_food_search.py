@@ -1,10 +1,6 @@
-import sys
 from dotenv import load_dotenv
 load_dotenv()
-
-# Safe encoding for Windows console output
-sys.stdout.reconfigure(encoding='utf-8')
-
+import os
 from backend.rag.food_search import buscar_alimento, UMBRAL_SIMILITUD
 from typing import Optional
 

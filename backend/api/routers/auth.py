@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 
@@ -39,7 +39,7 @@ def get_db():
 def generar_y_guardar_token_refresco(db: Session, user_id: int) -> str:
     """Genera un nuevo refresh token, lo guarda en la BD y lo retorna."""
     token_str = crear_token_refresco()
-    expiracion = datetime.utcnow() + timedelta(days=30)
+    expiracion = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=30)
     db_token = RefreshToken(
         user_id=user_id,
         token=token_str,
@@ -195,7 +195,7 @@ def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
         )
 
     # 2. Verificar que no haya expirado
-    if db_token.fecha_expiracion < datetime.utcnow():
+    if db_token.fecha_expiracion < datetime.now(timezone.utc).replace(tzinfo=None):
         db_token.revocado = True
         db.commit()
         raise HTTPException(

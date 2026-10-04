@@ -3,8 +3,8 @@ from typing import Optional
 
 
 class GenerarPlanRequest(BaseModel):
-    """Datos del perfil para generar el plan. Mismo formato que devuelve el ProfileAgent."""
-    perfil: dict
+    """Solicitud para generar un nuevo plan nutricional."""
+    pass
 
 
 class GenerarPlanResponse(BaseModel):

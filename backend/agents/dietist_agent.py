@@ -54,14 +54,17 @@ class DietistAgent:
         )
     """
 
-    MODEL = "llama-3.3-70b-versatile"
-    TEMPERATURE = 0.7   # Temperatura media: creatividad culinaria sin perder coherencia nutricional
+    MODEL = "openai/gpt-oss-120b"
+    TEMPERATURE = 0.2   # Temperatura media: creatividad culinaria sin perder coherencia nutricional
 
     def __init__(self):
         self.llm = ChatGroq(
             model=self.MODEL,
             api_key=groq_api_key,
             temperature=self.TEMPERATURE,
+            max_completion_tokens=3500,
+            reasoning_effort="low",
+            include_reasoning=False,
         )
         self.system_prompt = load_prompt("dietist_prompt.md")
 
@@ -119,13 +122,19 @@ class DietistAgent:
         from backend.rag.clinical_knowledge_search import buscar_evidencia
 
         query_parts = []
+
         obj = perfil.get("objetivo_principal")
         if obj:
             query_parts.append(str(obj))
-        pats = perfil.get("patologias")
-        if pats:
-            query_parts.extend([str(p) for p in pats])
-        
+
+        patologias = list(dict.fromkeys(
+            (perfil.get("patologias") or [])
+            + (perfil.get("patologias_activas") or [])
+        ))
+
+        if patologias:
+            query_parts.extend([str(p) for p in patologias])
+
         query_rag = " ".join(query_parts) if query_parts else "nutrition diet healthy meals"
         
         evidencia = buscar_evidencia(query_rag, n_resultados=3)
@@ -248,49 +257,71 @@ class DietistAgent:
         )
 
         respuesta = self.llm.invoke(mensajes)
-        return respuesta.content
+
+        logger.info(
+            "DietistAgent respuesta Groq completa: %r",
+            respuesta
+        )
+
+        logger.info(
+            "DietistAgent content: %r",
+            respuesta.content
+        )
+
+        return respuesta.content or ""
 
     def _parsear_respuesta(self, texto: str, dia_semana: str) -> dict:
         """
-        Extrae y parsea el JSON de la respuesta del modelo.
-
-        Estrategia de 3 capas:
-          1. Parseo directo (ideal).
-          2. Búsqueda del bloque JSON más grande en el texto.
-          3. Extracción de bloque markdown ```json ... ```.
+        Parsea la respuesta JSON devuelta por el modelo.
+        El modelo está configurado para devolver JSON directamente.
         """
-        # 1) Parseo directo
+
+        if not texto or not texto.strip():
+            raise ValueError(
+                f"El modelo devolvió una respuesta vacía para {dia_semana}."
+            )
+
+        texto = texto.strip()
+
+        # 1. JSON directo
         try:
-            return json.loads(texto.strip())
+            resultado = json.loads(texto)
+
+            if not isinstance(resultado, dict):
+                raise ValueError(
+                    f"El JSON devuelto para {dia_semana} no es un objeto."
+                )
+
+            return resultado
+
         except json.JSONDecodeError:
             pass
 
-        # 2) Primer bloque {...} grande
-        patron = r'\{[\s\S]*\}'
+        # 2. Fallback por si el modelo envolviera el JSON en texto
+        patron = r"\{[\s\S]*\}"
         match = re.search(patron, texto)
+
         if match:
             try:
-                return json.loads(match.group())
-            except json.JSONDecodeError:
-                pass
+                resultado = json.loads(match.group())
 
-        # 3) Bloque markdown ```json ... ```
-        patron_md = r'```(?:json)?\s*([\s\S]*?)```'
-        match_md = re.search(patron_md, texto)
-        if match_md:
-            try:
-                return json.loads(match_md.group(1).strip())
+                if isinstance(resultado, dict):
+                    return resultado
+
             except json.JSONDecodeError:
                 pass
 
         logger.error(
-            "DietistAgent: no se pudo parsear JSON para %s.\nRespuesta:\n%s",
-            dia_semana, texto[:500]
+            "DietistAgent: respuesta no parseable para %s:\n%s",
+            dia_semana,
+            texto[:2000],
         )
+
         raise ValueError(
             f"El modelo no devolvió JSON válido para {dia_semana}. "
-            f"Respuesta recibida:\n{texto[:500]}..."
+            f"Respuesta recibida:\n{texto[:1000]}"
         )
+
 
     def _extraer_nombres_platos(self, menu_dia: dict) -> list[str]:
         """Extrae los nombres de todos los platos de un día para pasarlos como comidas_previas."""
@@ -379,3 +410,4 @@ if __name__ == "__main__":
     print(f"   Carbos generados: {totales.get('carbos_g', '?')} g")
     print(f"   Grasas objetivo : {calculos['macros']['grasas_g']:.0f} g")
     print(f"   Grasas generadas: {totales.get('grasas_g', '?')} g")
+

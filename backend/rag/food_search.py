@@ -17,6 +17,7 @@ from typing import Optional
 
 from fastembed import TextEmbedding
 from qdrant_client import QdrantClient
+from backend.config import qdrant_url, qdrant_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,6 @@ _cliente: Optional[QdrantClient] = None
 _modelo: Optional[TextEmbedding] = None
 _rag_activo: Optional[bool] = None  # None = no intentado todavía
 
-
 def _inicializar() -> bool:
     """
     Inicializa el cliente Qdrant y el modelo de embeddings.
@@ -40,25 +40,30 @@ def _inicializar() -> bool:
     global _cliente, _modelo, _rag_activo
 
     if _rag_activo is not None:
-        return _rag_activo  # ya se intentó inicializar antes
-
-    qdrant_url = os.getenv("QDRANT_URL")
-    qdrant_api_key = os.getenv("QDRANT_API_KEY")
+        return _rag_activo
 
     if not qdrant_url:
         logger.warning(
             "QDRANT_URL no configurada — RAG desactivado. "
-            "Añade QDRANT_URL y QDRANT_API_KEY al .env o a las variables de Railway."
+            "Añade QDRANT_URL y QDRANT_API_KEY al .env o a las variables de Render."
         )
         _rag_activo = False
         return False
 
     try:
         logger.info("Inicializando cliente Qdrant: %s", qdrant_url)
-        _cliente = QdrantClient(url=qdrant_url, api_key=qdrant_api_key, timeout=10)
+
+        _cliente = QdrantClient(
+            url=qdrant_url,
+            api_key=qdrant_api_key,
+            timeout=10
+        )
 
         # Verificar que la colección existe
-        colecciones = [c.name for c in _cliente.get_collections().collections]
+        colecciones = [
+            c.name for c in _cliente.get_collections().collections
+        ]
+
         if COLECCION not in colecciones:
             logger.warning(
                 "Colección '%s' no encontrada en Qdrant. "
@@ -68,22 +73,30 @@ def _inicializar() -> bool:
             _rag_activo = False
             return False
 
-        logger.info("Cargando modelo de embeddings '%s'...", MODELO_EMBEDDINGS)
+        logger.info(
+            "Cargando modelo de embeddings '%s'...",
+            MODELO_EMBEDDINGS
+        )
+
         _modelo = TextEmbedding(MODELO_EMBEDDINGS)
 
         info = _cliente.get_collection(COLECCION)
+
         logger.info(
-            "✅ RAG Qdrant activo — %d alimentos indexados",
+            "RAG Qdrant activo — %d alimentos indexados",
             info.points_count or 0,
         )
+
         _rag_activo = True
         return True
 
     except Exception as exc:
-        logger.error("Error inicializando Qdrant: %s — RAG desactivado", exc)
+        logger.error(
+            "Error inicializando Qdrant: %s — RAG desactivado",
+            exc
+        )
         _rag_activo = False
         return False
-
 
 # ── Funciones públicas ────────────────────────────────────────────────────────
 
@@ -150,78 +163,256 @@ def buscar_alimento(query: str, n_resultados: int = 3) -> list[dict]:
 
 def buscar_mejor_match(query: str) -> Optional[dict]:
     """
-    Devuelve el alimento más parecido a la query usando una búsqueda híbrida
-    (vectorial + re-ranking de coincidencia de palabras clave por prefijo).
-    
-    Devuelve None si:
-    - RAG no disponible
-    - No hay resultados
-    - El mejor resultado re-ordenado no supera el umbral de similitud base (0.75)
+    Devuelve el alimento más adecuado para una consulta.
+
+    Estrategia de ranking:
+    1. Coincidencia exacta del nombre.
+    2. Coincidencia exacta del nombre normalizado.
+    3. Coincidencia fuerte de palabras clave.
+    4. Similitud semántica mediante embeddings.
+
+    Esto evita que un alimento como:
+        "Pechuga de pollo cocido"
+
+    gane frente a:
+        "Pechuga de pollo"
+
+    cuando la consulta es exactamente "pechuga de pollo".
     """
-    # Buscamos los 40 candidatos principales en Qdrant
-    resultados = buscar_alimento(query, n_resultados=40)
+
+    if not query or not query.strip():
+        return None
+
+    resultados = buscar_alimento(
+        query,
+        n_resultados=100,
+    )
+
     if not resultados:
         return None
 
-    # Extraer palabras clave de la consulta (limpiando puntuación y palabras de parada)
-    query_clean = query.lower().replace(",", " ").replace(".", " ").replace(";", " ")
-    query_words = set(query_clean.split())
-    stop_words = {
-        "de", "la", "a", "con", "en", "para", "un", "una", "el", "los", "las", 
-        "y", "al", "del", "o", "u", "su", "sus", "por", "como", "plana", "plancha"
-    }
-    query_keywords = {w for w in query_words if w not in stop_words and len(w) > 2}
+    # ---------------------------------------------------------
+    # Normalización de texto
+    # ---------------------------------------------------------
 
-    best_item = None
-    best_score = -1.0
+    def normalizar_texto(texto: str) -> str:
+        texto = str(texto).lower().strip()
 
-    for r in resultados:
-        nombre_clean = r["nombre"].lower().replace(",", " ").replace(".", " ").replace(";", " ")
-        nombre_words = set(nombre_clean.split())
-        nombre_keywords = {w for w in nombre_words if w not in stop_words and len(w) > 2}
-        
-        # Calcular coincidencia de palabras clave (con soporte de prefijos para tolerar typos)
-        overlap = 0
-        for qw in query_keywords:
-            for nw in nombre_keywords:
-                # Comprobación directa o si comparten un prefijo de al menos 4 letras (ej. mantequeilla -> mantequilla)
-                if qw in nw or nw in qw or (len(qw) > 3 and len(nw) > 3 and qw[:4] == nw[:4]):
-                    overlap += 1
-                    break
-        
-        # Puntuación final combinada: similitud base + 0.15 por palabra clave coincidente
-        score = r["similitud"] + (overlap * 0.15)
-        
-        if score > best_score:
-            best_score = score
-            best_item = r
+        for caracter in [",", ".", ";", ":", "(", ")", "[", "]"]:
+            texto = texto.replace(caracter, " ")
 
-    # Para ser válido, la similitud base (vectorial pura) del mejor candidato re-ordenado 
-    # no debe ser inferior al umbral, pero si tiene buen match de palabras clave (overlap >= 2)
-    # permitimos ser un poco más flexibles (umbral rebajado a 0.70)
-    umbral = UMBRAL_SIMILITUD
-    if best_item:
-        best_name_clean = best_item["nombre"].lower().replace(",", " ").replace(".", " ").replace(";", " ")
-        best_name_words = set(best_name_clean.split())
-        best_name_keywords = {w for w in best_name_words if w not in stop_words and len(w) > 2}
-        best_overlap = 0
-        for qw in query_keywords:
-            for nw in best_name_keywords:
-                if qw in nw or nw in qw or (len(qw) > 3 and len(nw) > 3 and qw[:4] == nw[:4]):
-                    best_overlap += 1
-                    break
-        
-        if best_overlap >= 2:
-            umbral = 0.70
+        return " ".join(texto.split())
 
-        if best_item["similitud"] < umbral:
+    def obtener_keywords(texto: str) -> set:
+        stop_words = {
+            "de", "la", "a", "con", "en", "para",
+            "un", "una", "el", "los", "las",
+            "y", "al", "del", "o", "u",
+            "su", "sus", "por", "como",
+            "plana", "plancha",
+        }
+
+        palabras = normalizar_texto(texto).split()
+
+        return {
+            palabra
+            for palabra in palabras
+            if palabra not in stop_words
+            and len(palabra) > 2
+        }
+
+    query_normalizada = normalizar_texto(query)
+    query_keywords = obtener_keywords(query)
+
+    # ---------------------------------------------------------
+    # 1. Coincidencia exacta
+    # ---------------------------------------------------------
+
+    for resultado in resultados:
+
+        nombre = normalizar_texto(
+            resultado.get("nombre", "")
+        )
+
+        if nombre == query_normalizada:
             logger.debug(
-                "Match re-rankeado '%s' descartado: similitud base %.3f < umbral %.2f",
-                best_item["nombre"], best_item["similitud"], umbral,
+                "Match exacto encontrado: '%s'",
+                resultado["nombre"],
             )
-            return None
+            return resultado
 
-    return best_item
+    # ---------------------------------------------------------
+    # 2. Ranking híbrido
+    # ---------------------------------------------------------
+
+    mejor_resultado = None
+    mejor_score = -1.0
+
+    for resultado in resultados:
+
+        nombre = normalizar_texto(
+            resultado.get("nombre", "")
+        )
+
+        nombre_keywords = obtener_keywords(nombre)
+
+        # -----------------------------------------------------
+        # Coincidencia de palabras
+        # -----------------------------------------------------
+
+        palabras_coincidentes = 0
+
+        for query_word in query_keywords:
+
+            for nombre_word in nombre_keywords:
+
+                # Coincidencia directa
+                if (
+                    query_word == nombre_word
+                    or query_word in nombre_word
+                    or nombre_word in query_word
+                ):
+                    palabras_coincidentes += 1
+                    break
+
+                # Tolerancia a pequeños errores ortográficos
+                if (
+                    len(query_word) > 3
+                    and len(nombre_word) > 3
+                    and query_word[:4] == nombre_word[:4]
+                ):
+                    palabras_coincidentes += 1
+                    break
+
+        # -----------------------------------------------------
+        # Cobertura de palabras
+        # -----------------------------------------------------
+
+        total_keywords = max(
+            len(query_keywords),
+            1,
+        )
+
+        cobertura = (
+            palabras_coincidentes
+            / total_keywords
+        )
+
+        # -----------------------------------------------------
+        # Similitud semántica
+        # -----------------------------------------------------
+
+        similitud = resultado.get(
+            "similitud",
+            0.0,
+        )
+
+        # -----------------------------------------------------
+        # Bonus por coincidencia de palabras
+        # -----------------------------------------------------
+
+        bonus_palabras = (
+            cobertura * 0.20
+        )
+
+        # -----------------------------------------------------
+        # Penalización pequeña por palabras adicionales
+        #
+        # Ejemplo:
+        #
+        # Query:
+        #   "pechuga de pollo"
+        #
+        # Nombre:
+        #   "pechuga de pollo cocido"
+        #
+        # Ambos comparten las palabras principales,
+        # pero el segundo tiene información adicional.
+        # -----------------------------------------------------
+
+        palabras_extra = max(
+            len(nombre_keywords)
+            - len(query_keywords),
+            0,
+        )
+
+        penalizacion_extra = min(
+            palabras_extra * 0.02,
+            0.10,
+        )
+
+        # -----------------------------------------------------
+        # Score final
+        # -----------------------------------------------------
+
+        score = (
+            similitud
+            + bonus_palabras
+            - penalizacion_extra
+        )
+
+        if score > mejor_score:
+            mejor_score = score
+            mejor_resultado = resultado
+
+    # ---------------------------------------------------------
+    # 3. Validación final
+    # ---------------------------------------------------------
+
+    if not mejor_resultado:
+        return None
+
+    # Si la consulta tiene palabras clave y hemos conseguido
+    # una coincidencia fuerte, permitimos una similitud algo menor.
+
+    mejor_nombre = normalizar_texto(
+        mejor_resultado.get("nombre", "")
+    )
+
+    mejor_keywords = obtener_keywords(
+        mejor_nombre
+    )
+
+    overlap = 0
+
+    for query_word in query_keywords:
+
+        for nombre_word in mejor_keywords:
+
+            if (
+                query_word == nombre_word
+                or query_word in nombre_word
+                or nombre_word in query_word
+            ):
+                overlap += 1
+                break
+
+            if (
+                len(query_word) > 3
+                and len(nombre_word) > 3
+                and query_word[:4] == nombre_word[:4]
+            ):
+                overlap += 1
+                break
+
+    umbral = UMBRAL_SIMILITUD
+
+    if overlap >= 2:
+        umbral = 0.70
+
+    if mejor_resultado["similitud"] < umbral:
+
+        logger.debug(
+            "Match '%s' descartado: "
+            "similitud %.3f < umbral %.2f",
+            mejor_resultado["nombre"],
+            mejor_resultado["similitud"],
+            umbral,
+        )
+
+        return None
+
+    return mejor_resultado
 
 
 def buscar_mejor_match_vision(query: str) -> Optional[dict]:

@@ -9,15 +9,10 @@ Uso:
     python test_verify_plan.py
 """
 
-import sys
-import io
 import json
-
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 from backend.database.connection import SessionLocal
 from backend.database.repositories.plan_repository import obtener_plan_activo
-
+import os
 # ← Marta Test ya guardada en una ejecución anterior
 USER_ID = 5
 

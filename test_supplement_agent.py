@@ -12,7 +12,7 @@ import json
 from unittest.mock import patch, MagicMock
 import pytest
 from fastapi.testclient import TestClient
-
+import os
 from backend.api.main import app
 
 

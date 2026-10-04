@@ -10,16 +10,10 @@ Verifica:
   3. El JSON de salida tiene todas las claves esperadas.
   4. El razonamiento clínico es coherente con los datos de Marta.
 """
-
-import sys
-import io
 import json
-
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 from backend.agents.nutrition_agent import NutritionAgent
 from backend.utils.nutrition_calculator import calcular_todo
-
+import os
 
 # ── Perfil de prueba: Marta ──────────────────────────────────────────────────
 
@@ -86,7 +80,7 @@ def separador(titulo: str):
 
 # ── Tests ────────────────────────────────────────────────────────────────────
 
-def test_calculos_base():
+def calcular_y_validar_base():
     separador("1 · Cálculos nutricionales de Marta")
     calculos = calcular_todo(PERFIL_MARTA).to_dict()
 
@@ -105,7 +99,7 @@ def test_calculos_base():
     return calculos
 
 
-def test_estructura_json(resultado: dict):
+def validar_estructura_json(resultado: dict):
     separador("2 · Estructura del JSON de salida")
 
     faltantes = CLAVES_ESPERADAS - resultado.keys()
@@ -142,7 +136,7 @@ def test_estructura_json(resultado: dict):
     ok(f"alertas: {len(resultado['alertas'])} alertas")
 
 
-def test_coherencia_clinica(resultado: dict):
+def validar_coherencia_clinica(resultado: dict):
     separador("3 · Coherencia clínica del análisis")
 
     resumen = resultado["resumen_perfil"].lower()
@@ -174,7 +168,7 @@ def main():
     print("=" * 55)
 
     # Test 1: cálculos base
-    calculos = test_calculos_base()
+    calculos = calcular_y_validar_base()
 
     # Inicializar agente
     separador("Inicializando NutritionAgent...")
@@ -188,10 +182,10 @@ def main():
     ok("Respuesta recibida y JSON parseado correctamente")
 
     # Test 2: estructura
-    test_estructura_json(resultado)
+    validar_estructura_json(resultado)
 
     # Test 3: coherencia clínica
-    test_coherencia_clinica(resultado)
+    validar_coherencia_clinica(resultado)
 
     # Resultado completo
     separador("📋 Análisis clínico completo")

@@ -1,9 +1,7 @@
-import sys, io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 from backend.utils.nutrition_calculator import calcular_todo
 from backend.database.connection import SessionLocal
 from backend.database.repositories.user_repository import obtener_perfil
+import os
 
 def test_con_marta():
     """
@@ -16,9 +14,7 @@ def test_con_marta():
         # Marta se guardó con user_id=4
         perfil = obtener_perfil(db, user_id=4)
 
-        if perfil is None:
-            print("❌ No se encontró el perfil. Comprueba el user_id.")
-            return
+        assert perfil is not None, "No se encontró el perfil. Comprueba el user_id."
 
         print("✅ Perfil cargado desde Supabase")
         print(f"   Peso:      {perfil.peso_kg} kg")
@@ -30,6 +26,14 @@ def test_con_marta():
 
         print("\n🧮 Calculando...")
         resultado = calcular_todo(perfil).to_dict()
+
+        assert resultado["tmb"] > 0
+        assert resultado["tdee"] > 0
+        assert resultado["calorias_objetivo"] > 0
+        assert resultado["macros"]["proteinas_g"] > 0
+        assert resultado["macros"]["carbos_g"] > 0
+        assert resultado["macros"]["grasas_g"] > 0
+        assert resultado["hidratacion_ml"] > 0
 
         print("\n📊 RESULTADO:")
         print(f"   TMB:                {resultado['tmb']} kcal")

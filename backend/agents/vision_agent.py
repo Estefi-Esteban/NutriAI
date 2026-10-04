@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Modelos con fallback: el grande primero, si hay rate-limit usamos el pequeño
 _MODELOS_VISION = [
     "meta-llama/llama-4-scout-17b-16e-instruct",
-    "qwen/qwen3.6-27b",
+    "qwen/qwen3.8-27b",
 ]
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
@@ -313,3 +313,4 @@ class VisionAgent:
             totales[k] = round(totales[k], 1)
 
         return totales
+

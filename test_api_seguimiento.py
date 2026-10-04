@@ -1,13 +1,8 @@
-import sys
-import io
 import uuid
 import time
+import os
 from unittest.mock import patch
 from fastapi.testclient import TestClient
-
-# Forzar codificación UTF-8
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 from backend.api.main import app
 from backend.database.connection import SessionLocal
 from backend.database.repositories.user_repository import obtener_perfil

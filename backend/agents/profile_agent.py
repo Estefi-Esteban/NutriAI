@@ -1,12 +1,10 @@
 import re
 import json
+
 from langchain_groq import ChatGroq
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.messages import SystemMessage, HumanMessage
-from pydantic import BaseModel, Field
-from typing import Optional
-from backend.database.models import UserProfile
-from backend.database.connection import SessionLocal
+
 from backend.config import groq_api_key
 from backend.utils.decorators import reintentar_llamada_llm
 from backend.agents.prompts.prompt_loader import load_prompt
@@ -35,7 +33,7 @@ class ProfileAgent:
     def __init__(self):
         # Inicializamos el modelo Groq
         self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             api_key=groq_api_key,
             temperature=0.7,
         )
@@ -47,24 +45,27 @@ class ProfileAgent:
         self.perfil_completo = False
         self.datos_perfil = None
 
+
     def _extraer_json(self, texto: str) -> dict | None:
         """
-        Busca y extrae el JSON del mensaje de Gemini.
-        Devuelve el dict si lo encuentra, None si no hay JSON todavía.
+        Extrae el objeto JSON final del mensaje del agente.
         """
-        # Buscamos un bloque JSON en el texto
-        patron = r'\{[\s\S]*"perfil_completo"[\s\S]*\}'
-        match = re.search(patron, texto)
+        inicio = texto.find("{")
+        if inicio == -1:
+            return None
 
-        if match:
-            try:
-                datos = json.loads(match.group())
-                if datos.get("perfil_completo") is True:
-                    return datos
-            except json.JSONDecodeError:
-                return None
+        json_texto = texto[inicio:].strip()
+
+        try:
+            datos = json.loads(json_texto)
+        except json.JSONDecodeError:
+            return None
+
+        if datos.get("perfil_completo") is True and isinstance(datos.get("datos"), dict):
+            return datos
 
         return None
+
 
     def _construir_mensajes(self, mensaje_usuario: str) -> list:
         """
@@ -82,7 +83,7 @@ class ProfileAgent:
 
         return mensajes
 
-    @reintentar_llamada_llm(max_intentos=3, retardo_inicial=15.0, backoff=1.5)
+    @reintentar_llamada_llm(max_intentos=3, retardo_inicial=2.0, backoff=2.0)
     def _llamar_groq(self, mensajes: list) -> str:
         """Invoca el LLM de Groq con reintentos en caso de error."""
         respuesta = self.llm.invoke(mensajes)
@@ -122,23 +123,23 @@ class ProfileAgent:
 
         if json_detectado:
             self.perfil_completo = True
-            self.datos_perfil = json_detectado.get("datos")
+            self.datos_perfil = json_detectado["datos"]
 
-            # Limpiamos el JSON del texto para mostrar solo el mensaje bonito
-            texto_limpio = texto_respuesta[:texto_respuesta.find("{")].strip()
+            inicio_json = texto_respuesta.find("{")
+            texto_limpio = texto_respuesta[:inicio_json].strip()
 
             return {
                 "respuesta": texto_limpio,
                 "perfil_completo": True,
                 "datos": self.datos_perfil
             }
-
-        # Conversación normal, todavía recogiendo datos
+            
         return {
             "respuesta": texto_respuesta,
             "perfil_completo": False,
             "datos": None
         }
+
 
     def reiniciar(self):
         """Reinicia el agente para empezar un perfil nuevo."""

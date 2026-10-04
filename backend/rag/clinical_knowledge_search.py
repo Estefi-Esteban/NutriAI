@@ -9,10 +9,12 @@ Patrón: inicialización lazy singleton para ser ligero y eficiente.
 
 import os
 import logging
+from dotenv import load_dotenv
 from typing import Optional, List, Dict, Any
 from qdrant_client import QdrantClient
 from fastembed import TextEmbedding
 
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 MODELO_EMBEDDINGS = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"

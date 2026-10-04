@@ -35,14 +35,47 @@ def generar_plan(
     Devuelve inmediatamente un tarea_id para consultar el progreso
     con GET /planes/estado/{tarea_id}.
     """
+    
+    with SessionLocal() as db:
+        perfil_db = obtener_perfil(db, user_id=current_user.id)
+
+    if perfil_db is None:
+        raise RecursoNoEncontradoError("El usuario no tiene un perfil nutricional creado.")
+
+    perfil = {
+        "nombre": current_user.nombre,
+        "edad": perfil_db.edad,
+        "sexo": perfil_db.sexo,
+        "peso_kg": perfil_db.peso_kg,
+        "altura_cm": perfil_db.altura_cm,
+        "porcentaje_grasa": perfil_db.porcentaje_grasa,
+        "objetivo_principal": perfil_db.objetivo_principal.value,
+        "objetivo_secundario": perfil_db.objetivo_secundario,
+        "velocidad_objetivo": (
+            perfil_db.velocidad_objetivo.value
+            if perfil_db.velocidad_objetivo else None
+        ),
+        "nivel_actividad": perfil_db.nivel_actividad.value,
+        "dias_entrenamiento": perfil_db.dias_entrenamiento,
+        "tipo_entrenamiento": perfil_db.tipo_entrenamiento.value,
+        "dieta_tipo": perfil_db.dieta_tipo.value,
+        "alergias": perfil_db.alergias or [],
+        "intolerancias": perfil_db.intolerancias or [],
+        "presupuesto_semanal": perfil_db.presupuesto_semanal,
+        "tiempo_cocina_min": perfil_db.tiempo_cocina_min,
+        "personas_en_casa": perfil_db.personas_en_casa,
+        "medicacion": perfil_db.medicacion,
+        "patologias": perfil_db.patologias or [],
+    }
+
     tarea_id = crear_tarea_plan()
 
     background_tasks.add_task(
         generar_plan_background,
         tarea_id=tarea_id,
-        perfil=payload.perfil,
-        user_id=current_user.id,
-    )
+        perfil=perfil,
+        user_id=current_user.id
+    )   
 
     return GenerarPlanResponse(tarea_id=tarea_id, estado="iniciado")
 

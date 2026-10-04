@@ -1,6 +1,6 @@
 from backend.database.connection import engine
 from sqlalchemy import text
-
+import os
 try:
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))

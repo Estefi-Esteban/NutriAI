@@ -18,7 +18,7 @@ _ai_requests: dict[int, list[float]] = {}
 # Parámetros de Configuración
 FAILED_LOGIN_LIMIT = 5
 FAILED_LOGIN_WINDOW = 900  # 15 minutos en segundos
-AI_REQUEST_LIMIT = 10
+AI_REQUEST_LIMIT = 30
 AI_REQUEST_WINDOW = 60    # 1 minuto en segundos
 
 

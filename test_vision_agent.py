@@ -11,6 +11,7 @@ Estructura:
 import json
 import base64
 from io import BytesIO
+import os
 from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
 from fastapi.testclient import TestClient

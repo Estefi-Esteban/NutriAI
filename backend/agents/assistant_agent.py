@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class AssistantAgent:
 
-    MODEL = "llama-3.3-70b-versatile"
+    MODEL = "openai/gpt-oss-120b"
     TEMPERATURE = 0.7
     MAX_HISTORIAL = 10  # últimos N mensajes del historial
 
@@ -153,3 +153,4 @@ class AssistantAgent:
 
         mensajes.append(HumanMessage(content=mensaje_actual))
         return mensajes
+

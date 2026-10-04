@@ -14,8 +14,8 @@ from backend.utils.shopping_list_generator import generar_lista_compra
 from backend.agents.nutrition_agent import NutritionAgent
 from backend.agents.dietist_agent import DietistAgent, DIAS_SEMANA
 from backend.database.connection import SessionLocal
-from backend.database.repositories.user_repository import crear_usuario, guardar_perfil
-from backend.database.repositories.plan_repository import guardar_plan
+from backend.database.repositories.user_repository import crear_usuario
+from backend.database.repositories.plan_repository import guardar_plan  
 from backend.database.models import User
 from backend.api.dependencies import actualizar_tarea_plan
 from backend.database.repositories.protocol_repository import obtener_protocolo
@@ -38,18 +38,21 @@ def generar_plan_background(tarea_id: str, perfil: dict, user_id: int) -> None:
         with SessionLocal() as db:
             protocolo = obtener_protocolo(db, user_id=user_id)
 
-        if protocolo and (protocolo.notas_dietista or protocolo.restricciones or protocolo.alimentos_prohibidos or protocolo.alimentos_prioritarios):
-            # Inyectamos las restricciones en el perfil que reciben los agentes
+        if protocolo:
             perfil = {
-                **perfil,
-                "restricciones_clinicas": protocolo.notas_dietista or "",
-                "alimentos_prohibidos": protocolo.alimentos_prohibidos or [],
-                "alimentos_prioritarios": protocolo.alimentos_prioritarios or [],
-            }
+                    **perfil,
+                    "patologias_activas": protocolo.patologias_activas or [],
+                    "restricciones_clinicas": protocolo.notas_dietista or "",
+                    "restricciones": protocolo.restricciones or [],
+                    "alimentos_prohibidos": protocolo.alimentos_prohibidos or [],
+                    "alimentos_prioritarios": protocolo.alimentos_prioritarios or [],
+                }
+
             actualizar_tarea_plan(
                 tarea_id,
-                progreso=8,
-                dia_actual="Cargando protocolo clínico..."
+                estado="generando",
+                progreso=5,
+                dia_actual="Preparando protocolo nutricional"
             )
 
         # PASO 1 — Cálculos
@@ -98,10 +101,6 @@ def generar_plan_background(tarea_id: str, perfil: dict, user_id: int) -> None:
 
         # PASO 5 — Guardar en Supabase
         with SessionLocal() as db:
-            guardar_perfil(db, user_id=user_id, datos={
-                **perfil,
-                "presupuesto_semanal": perfil.get("presupuesto_semanal_eur", perfil.get("presupuesto_semanal")),
-            })
             plan = guardar_plan(db, user_id=user_id, calculos=calculos, menu_semana=menu_semana)
             plan_id = int(plan.id)
 
