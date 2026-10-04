@@ -249,7 +249,7 @@ class VisionAgent:
                 # Intentamos buscar con el nombre normalizado primero
                 nombre_norm = self._normalizar_nombre_alimento(nombre)
                 match = buscar_mejor_match_vision(nombre_norm)
-                
+
                 # Si no encuentra, intentamos con el nombre original
                 if match is None and nombre_norm != nombre.lower():
                     match = buscar_mejor_match_vision(nombre)
