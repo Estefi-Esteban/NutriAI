@@ -71,7 +71,7 @@ def _texto_embedding(row: pd.Series) -> str:
     """
 
     nombre = str(
-        row.get("product_name", "")
+        row.get("nombre", "")
     ).strip()
 
     cats = str(
@@ -266,7 +266,7 @@ def migrar() -> None:
                         # Identificación
                         "nombre": str(
                             row.get(
-                                "product_name",
+                                "nombre",
                                 ""
                             )
                         )[:200],
