@@ -21,6 +21,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from backend.config import groq_api_key
 from backend.agents.prompts.prompt_loader import load_prompt
 from backend.utils.decorators import reintentar_llamada_llm
+from backend.utils.groq_token_budget import groq_token_budget
 
 
 logger = logging.getLogger(__name__)
@@ -134,16 +135,45 @@ class NutritionAgent:
     @reintentar_llamada_llm(max_intentos=3, retardo_inicial=15.0, backoff=1.5)
     def _llamar_groq(self, mensaje_usuario: str, system_prompt: str) -> str:
         """Hace la llamada a Groq y devuelve el texto de la respuesta."""
+
         mensajes = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=mensaje_usuario),
         ]
 
-        logger.info("NutritionAgent: llamando a Groq con modelo %s", self.MODEL)
+        # Estimación aproximada de tokens de entrada.
+        tokens_prompt = (
+            len(system_prompt) // 4
+            + len(mensaje_usuario) // 4
+        )
+
+        # NutritionAgent todavía no tenía un límite explícito de salida.
+        # Reservamos un margen conservador.
+        max_completion_tokens = 1200
+
+        tokens_estimados = tokens_prompt + max_completion_tokens
+
+        logger.info(
+            "NutritionAgent: petición estimada | "
+            "prompt≈%d tokens | max_completion=%d | total potencial≈%d",
+            tokens_prompt,
+            max_completion_tokens,
+            tokens_estimados,
+        )
+
+        # Reservar espacio en el presupuesto GLOBAL antes de llamar a Groq.
+        groq_token_budget.esperar_disponibilidad(tokens_estimados)
+
+        logger.info(
+            "NutritionAgent: llamando a Groq con modelo %s",
+            self.MODEL,
+        )
 
         respuesta = self.llm.invoke(mensajes)
+
         return respuesta.content
 
+        
     def _parsear_respuesta(self, texto: str) -> dict:
         """
         Extrae y parsea el JSON de la respuesta del modelo.

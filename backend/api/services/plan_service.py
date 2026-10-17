@@ -63,6 +63,22 @@ def generar_plan_background(tarea_id: str, perfil: dict, user_id: int) -> None:
         analisis = NutritionAgent().analizar(perfil=perfil, calculos=calculos)
         actualizar_tarea_plan(tarea_id, progreso=25)
 
+        # --------------------------------------------------------------
+        # Compactar análisis para DietistAgent
+        # --------------------------------------------------------------
+        analisis_dietista = {
+            "recomendaciones": analisis.get("recomendaciones", []),
+            "alertas": analisis.get("alertas", []),
+            "distribucion_comidas": analisis.get(
+                "distribucion_comidas",
+                {}
+            ),
+            "notas_para_dietista": analisis.get(
+                "notas_para_dietista",
+                ""
+            ),
+        }
+
         # PASO 3 — Dietista, 7 días
         dietist = DietistAgent()
         menu_semana: dict = {}
@@ -78,7 +94,7 @@ def generar_plan_background(tarea_id: str, perfil: dict, user_id: int) -> None:
             menu_dia = dietist.generar_dia(
                 perfil=perfil,
                 calculos=calculos,
-                analisis=analisis,
+                analisis=analisis_dietista,
                 dia_semana=dia,
                 comidas_previas=comidas_previas,
             )

@@ -14,8 +14,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import time
-from collections import deque
 from typing import Optional
 
 from langchain_groq import ChatGroq
@@ -25,6 +23,7 @@ from backend.config import groq_api_key
 from backend.agents.prompts.prompt_loader import load_prompt
 from backend.rag.menu_validator import validar_y_corregir_dia
 from backend.utils.decorators import reintentar_llamada_llm
+from backend.utils.groq_token_budget import groq_token_budget
 
 
 logger = logging.getLogger(__name__)
@@ -62,19 +61,13 @@ class DietistAgent:
     # No aumentarlo mientras estemos controlando el TPM gratuito.
     MAX_COMPLETION_TOKENS = 2200
 
-    # Dejamos margen respecto al límite de 8000 TPM que apareció
-    # en los errores anteriores.
-    TPM_SAFE_BUDGET = 6000
-
     # Máximo de nombres de platos que se mandan como historial.
     MAX_COMIDAS_PREVIAS = 10
 
     # Evidencia RAG.
     MAX_EVIDENCIA_RESULTADOS = 2
     MAX_EVIDENCIA_CHARS = 900
-
-    # Control aproximado de peticiones dentro de una ventana de 60 s.
-    _usage_window = deque()
+    
 
     def __init__(self):
         self.llm = ChatGroq(
@@ -93,10 +86,10 @@ class DietistAgent:
 
         logger.info(
             "DietistAgent inicializado | modelo=%s | max_completion_tokens=%s | "
-            "TPM seguro=%s",
+            "presupuesto TPM global=%s",
             self.MODEL,
             self.MAX_COMPLETION_TOKENS,
-            self.TPM_SAFE_BUDGET,
+            groq_token_budget.budget,
         )
 
     # ------------------------------------------------------------------
@@ -509,97 +502,10 @@ class DietistAgent:
             (len(texto) + 3) // 4,
         )
 
-    # ------------------------------------------------------------------
-    # Control local de TPM
-    # ------------------------------------------------------------------
-
-    def _esperar_si_es_necesario(
-        self,
-        tokens_estimados: int,
-    ) -> None:
-        """
-        Mantiene una ventana aproximada de 60 segundos y evita
-        superar nuestro presupuesto local conservador.
-        """
-
-        ahora = time.monotonic()
-
-        # Eliminar registros de más de 60 segundos.
-        while self._usage_window:
-            timestamp, tokens = self._usage_window[0]
-
-            if ahora - timestamp < 60:
-                break
-
-            self._usage_window.popleft()
-
-        usados = sum(
-            tokens
-            for _, tokens in self._usage_window
-        )
-
-        if (
-            usados + tokens_estimados
-            <= self.TPM_SAFE_BUDGET
-        ):
-            return
-
-        # Esperar hasta que haya suficiente espacio.
-        while True:
-            ahora = time.monotonic()
-
-            while self._usage_window:
-                timestamp, tokens = self._usage_window[0]
-
-                if ahora - timestamp < 60:
-                    break
-
-                self._usage_window.popleft()
-
-            usados = sum(
-                tokens
-                for _, tokens in self._usage_window
-            )
-
-            if (
-                usados + tokens_estimados
-                <= self.TPM_SAFE_BUDGET
-            ):
-                break
-
-            if not self._usage_window:
-                break
-
-            timestamp_mas_antiguo = (
-                self._usage_window[0][0]
-            )
-
-            espera = max(
-                1.0,
-                60
-                - (
-                    ahora
-                    - timestamp_mas_antiguo
-                )
-                + 0.5,
-            )
-
-            logger.warning(
-                "DietistAgent: límite TPM local. "
-                "Usados≈%d, próxima petición≈%d, "
-                "presupuesto=%d. Esperando %.1fs.",
-                usados,
-                tokens_estimados,
-                self.TPM_SAFE_BUDGET,
-                espera,
-            )
-
-            time.sleep(espera)
 
     # ------------------------------------------------------------------
     # Llamada Groq
     # ------------------------------------------------------------------
-
     @reintentar_llamada_llm(
         max_intentos=3,
         retardo_inicial=15.0,
@@ -612,18 +518,12 @@ class DietistAgent:
         system_prompt: str,
     ) -> str:
         """
-        Hace la llamada a Groq.
-
-        Se registra una estimación del consumo antes de llamar.
+        Hace la llamada a Groq utilizando el presupuesto TPM global.
         """
 
         tokens_prompt = (
-            self._estimar_tokens(
-                system_prompt
-            )
-            + self._estimar_tokens(
-                mensaje_usuario
-            )
+            self._estimar_tokens(system_prompt)
+            + self._estimar_tokens(mensaje_usuario)
         )
 
         tokens_peticion = (
@@ -642,22 +542,22 @@ class DietistAgent:
         )
 
         # --------------------------------------------------------------
-        # Protección contra una petición obviamente demasiado grande.
+        # Protección contra una petición individual demasiado grande.
         # --------------------------------------------------------------
 
-        if tokens_peticion > self.TPM_SAFE_BUDGET:
+        if tokens_peticion > groq_token_budget.budget:
             raise ValueError(
                 "Petición demasiado grande para el presupuesto "
                 f"seguro de Groq: ≈{tokens_peticion} tokens "
-                f"(límite local={self.TPM_SAFE_BUDGET}). "
+                f"(límite local={groq_token_budget.budget}). "
                 "Reduce prompt/RAG/datos antes de llamar."
             )
 
         # --------------------------------------------------------------
-        # Esperar si ya hemos usado demasiado TPM recientemente.
+        # Reservar espacio en el presupuesto GLOBAL.
         # --------------------------------------------------------------
 
-        self._esperar_si_es_necesario(
+        groq_token_budget.esperar_disponibilidad(
             tokens_peticion
         )
 
@@ -675,14 +575,6 @@ class DietistAgent:
             "(modelo=%s) para %s",
             self.MODEL,
             dia_semana,
-        )
-
-        # Registramos el consumo estimado antes de la llamada.
-        self._usage_window.append(
-            (
-                time.monotonic(),
-                tokens_peticion,
-            )
         )
 
         respuesta = self.llm.invoke(
@@ -716,8 +608,6 @@ class DietistAgent:
             ),
         )
 
-        # No imprimimos toda la respuesta en logs.
-        # Puede ser enorme y ensuciar el terminal.
         logger.debug(
             "DietistAgent content: %r",
             respuesta.content,

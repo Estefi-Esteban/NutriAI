@@ -224,7 +224,7 @@ El JSON debe tener exactamente esta estructura:
   "totales_dia": {
     "calorias": 0,
     "proteinas_g": 0,
-    "carbohidratos_g": 0,
+    "carbos_g": 0,
     "grasas_g": 0
   }
 }
@@ -239,7 +239,7 @@ Cada una de las cinco comidas debe utilizar exactamente esta estructura:
   "hora": "08:00",
   "calorias": 0,
   "proteinas_g": 0,
-  "carbohidratos_g": 0,
+  "carbos_g": 0,
   "grasas_g": 0,
   "ingredientes": [
     {
@@ -313,7 +313,7 @@ Si no hay sustituciones necesarias:
 {
   "calorias": 0,
   "proteinas_g": 0,
-  "carbohidratos_g": 0,
+  "carbos_g": 0,
   "grasas_g": 0
 }
 

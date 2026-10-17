@@ -592,68 +592,120 @@ def preparar_informacion_semantica(df):
 def detectar_outliers_por_alimento(df):
     """
     Detecta valores nutricionales anómalos dentro del mismo
-    alimento y estado.
+    alimento y estado utilizando una desviación robusta basada
+    en la mediana y el MAD.
 
-    Ejemplo conceptual:
+    Se evalúan conjuntamente:
+        - kcal
+        - proteínas
+        - carbohidratos
+        - grasas
 
-        manzana | desconocido | 52 kcal
-        manzana | desconocido | 54 kcal
-        manzana | desconocido | 465 kcal
+    No se elimina ningún registro aquí.
+    Solo se marca como outlier_nutricional=True.
 
-    El tercer registro puede detectarse automáticamente como
-    outlier sin tener que escribir:
-
-        if manzana: kcal entre X e Y
+    Con pocos registros no se fuerza una decisión estadística.
     """
 
     df["outlier_nutricional"] = False
+
+    columnas = [
+        "energy-kcal_100g",
+        "proteins_100g",
+        "carbohydrates_100g",
+        "fat_100g",
+    ]
 
     grupos = df.groupby(
         [
             "nombre_normalizado",
             "estado_alimento",
         ],
-        dropna=False
+        dropna=False,
     )
 
     for _, indices in grupos.groups.items():
 
-        # Necesitamos suficientes observaciones para comparar.
-        if len(indices) < 3:
+        # ----------------------------------------------------
+        # Necesitamos suficientes registros.
+        # ----------------------------------------------------
+
+        if len(indices) < 5:
             continue
 
-        grupo = df.loc[indices]
+        grupo = df.loc[
+            indices,
+            columnas,
+        ].copy()
 
-        kcal = grupo[
-            "energy-kcal_100g"
-        ]
+        # ----------------------------------------------------
+        # Calculamos una puntuación de anomalía por columna.
+        # ----------------------------------------------------
 
-        mediana = kcal.median()
+        puntuaciones = pd.DataFrame(
+            0.0,
+            index=grupo.index,
+            columns=columnas,
+        )
 
-        mad = np.median(
-            np.abs(
-                kcal - mediana
+        for columna in columnas:
+
+            valores = grupo[columna]
+
+            mediana = valores.median()
+
+            mad = np.median(
+                np.abs(
+                    valores - mediana
+                )
+            )
+
+            # ------------------------------------------------
+            # Si todos los valores son iguales, esa variable
+            # no aporta información para detectar anomalías.
+            # ------------------------------------------------
+
+            if mad == 0 or pd.isna(mad):
+                continue
+
+            z = (
+                0.6745
+                * (valores - mediana)
+                / mad
+            ).abs()
+
+            puntuaciones[columna] = z
+
+        # ----------------------------------------------------
+        # Número de variables que consideran anómalo
+        # al mismo registro.
+        # ----------------------------------------------------
+
+        variables_anomalas = (
+            puntuaciones >= 3.5
+        ).sum(axis=1)
+
+        # ----------------------------------------------------
+        # Un registro se marca como outlier si:
+        #
+        # 1. Es extremo en al menos 2 variables
+        #
+        # O:
+        #
+        # 2. Es extremadamente extremo en una sola variable.
+        # ----------------------------------------------------
+
+        outlier = (
+            (variables_anomalas >= 3)
+            | (
+                puntuaciones.max(axis=1)
+                >= 8.0
             )
         )
 
-        # Si no hay dispersión, no podemos detectar
-        # outliers mediante MAD.
-        if mad == 0:
-            continue
-
-        modified_z_score = (
-            0.6745
-            * (kcal - mediana)
-            / mad
-        ).abs()
-
-        outliers = (
-            modified_z_score > 3.5
-        )
-
         df.loc[
-            indices[outliers],
-            "outlier_nutricional"
+            outlier.index[outlier],
+            "outlier_nutricional",
         ] = True
 
     return df
@@ -667,15 +719,26 @@ def calcular_score_calidad(df):
     """
     Genera una puntuación automática para seleccionar
     el mejor registro disponible de cada alimento/estado.
+
+    La selección prioriza:
+
+        1. consistencia energética
+        2. ausencia de anomalías nutricionales
+        3. calidad energética
+        4. menor procesamiento
+
+    Los registros marcados como outliers reciben una
+    penalización fuerte para evitar que datos extremos
+    terminen representando al alimento.
     """
 
     score = pd.Series(
         0.0,
-        index=df.index
+        index=df.index,
     )
 
     # --------------------------------------------------------
-    # Calidad energética
+    # 1. Calidad energética
     # --------------------------------------------------------
 
     score += (
@@ -686,7 +749,11 @@ def calcular_score_calidad(df):
     )
 
     # --------------------------------------------------------
-    # Consistencia energética
+    # 2. Consistencia energética
+    #
+    # Cuanto menor sea la diferencia entre las kcal
+    # declaradas y las kcal calculadas desde macros,
+    # mejor.
     # --------------------------------------------------------
 
     score += (
@@ -698,17 +765,17 @@ def calcular_score_calidad(df):
     ) * 10
 
     # --------------------------------------------------------
-    # Penalización de outliers
+    # 3. Penalización fuerte de anomalías nutricionales
     # --------------------------------------------------------
 
     score -= (
         df["outlier_nutricional"]
         .astype(int)
-        * 20
+        * 40
     )
 
     # --------------------------------------------------------
-    # Penalización suave de productos procesados
+    # 4. Penalización suave de productos procesados
     # --------------------------------------------------------
 
     score -= (
@@ -728,38 +795,123 @@ def calcular_score_calidad(df):
 
 def deduplicar(df):
     """
-    Conserva el mejor registro para cada:
+    Elimina duplicados del dataset en dos fases:
 
-        nombre_normalizado + estado_alimento
+    1. Elimina registros nutricionalmente idénticos dentro del mismo
+       alimento/estado, conservando el de mayor calidad.
 
-    Esto evita mezclar automáticamente:
+    2. Para cada nombre_normalizado + estado_alimento, conserva
+       únicamente el registro con mejor score_calidad.
 
-        arroz seco
-        arroz cocido
-
-    o:
-
-        pollo crudo
-        pollo asado
+    IMPORTANTE:
+    - No mezcla variantes diferentes.
+      Ej.: yogur griego, yogur griego natural, yogur griego fresa
+      siguen siendo alimentos distintos.
+    - Los outliers ya penalizados por score_calidad tienen menos
+      posibilidades de ser seleccionados.
     """
 
-    claves = [
+    df = df.copy()
+
+    columnas_identidad_nutricional = [
+        "nombre_normalizado",
+        "energy-kcal_100g",
+        "proteins_100g",
+        "carbohydrates_100g",
+        "fat_100g",
+        "estado_alimento",
+    ]
+
+    columnas_alimento = [
         "nombre_normalizado",
         "estado_alimento",
     ]
 
-    df = (
-        df
-        .sort_values(
-            "score_calidad",
-            ascending=False
-        )
-        .drop_duplicates(
-            subset=claves,
-            keep="first"
-        )
-        .copy()
+    registros_iniciales = len(df)
+
+    # ------------------------------------------------------------------
+    # PASO 1: eliminar duplicados nutricionalmente idénticos
+    # ------------------------------------------------------------------
+
+    # Ordenamos por score para que, cuando haya duplicados exactos,
+    # conservemos el registro de mayor calidad.
+    df = df.sort_values(
+        by="score_calidad",
+        ascending=False,
+        kind="stable",
     )
+
+    duplicados_nutricionales = df.duplicated(
+        subset=columnas_identidad_nutricional,
+        keep="first",
+    )
+
+    eliminados_nutricionales = int(duplicados_nutricionales.sum())
+
+    df = df.loc[~duplicados_nutricionales].copy()
+
+    # ------------------------------------------------------------------
+    # PASO 2: seleccionar el mejor registro de cada alimento/variante
+    # ------------------------------------------------------------------
+
+    df = df.sort_values(
+        by=[
+            "nombre_normalizado",
+            "estado_alimento",
+            "score_calidad",
+        ],
+        ascending=[
+            True,
+            True,
+            False,
+        ],
+        kind="stable",
+    )
+
+    duplicados_alimento = df.duplicated(
+        subset=columnas_alimento,
+        keep="first",
+    )
+
+    eliminados_por_variante = int(duplicados_alimento.sum())
+
+    df = df.loc[~duplicados_alimento].copy()
+
+    # ------------------------------------------------------------------
+    # RESULTADO
+    # ------------------------------------------------------------------
+
+    df = df.reset_index(drop=True)
+
+    registros_finales = len(df)
+    eliminados_totales = registros_iniciales - registros_finales
+
+    print("\n" + "=" * 80)
+    print("DEDUPLICACIÓN")
+    print("=" * 80)
+
+    print(f"Registros antes: {registros_iniciales:,}")
+    print(
+        f"Duplicados nutricionalmente idénticos eliminados: "
+        f"{eliminados_nutricionales:,}"
+    )
+    print(
+        f"Registros adicionales eliminados por variante: "
+        f"{eliminados_por_variante:,}"
+    )
+    print(f"Total eliminados: {eliminados_totales:,}")
+    print(f"Registros finales: {registros_finales:,}")
+
+    if registros_iniciales > 0:
+        porcentaje = (
+            eliminados_totales / registros_iniciales
+        ) * 100
+
+        print(
+            f"Reducción del dataset: {porcentaje:.2f}%"
+        )
+
+    print("=" * 80)
 
     return df
 
