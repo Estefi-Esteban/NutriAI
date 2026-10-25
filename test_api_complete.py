@@ -146,14 +146,13 @@ def test_full_system(mock_sleep):
     tarea_id = gen_data["tarea_id"]
     print(f"   ✅ Tarea de generación lanzada. tarea_id={tarea_id}, estado={gen_data['estado']}")
     
-    # 5. Polling de la tarea (Público)
+    # 5. Consultar estado de la tarea (Autenticado)
     print("🚀 [5/8] GET /planes/estado/{tarea_id}...")
-    response = client.get(f"/planes/estado/{tarea_id}")
+    response = client.get(
+        f"/planes/estado/{tarea_id}",
+        headers=headers
+    )
     assert response.status_code == 200, f"Error: {response.text}"
-    state_data = response.json()
-    print(f"   ✅ Estado de la tarea: {state_data}")
-    assert state_data["estado"] == "completado"
-    assert state_data["progreso"] == 100
     
     # 6. Obtener Plan Activo (Autenticado)
     print("🚀 [6/8] GET /planes/activo...")

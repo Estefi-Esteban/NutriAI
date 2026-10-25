@@ -106,7 +106,40 @@ def test_plan_activo_usuario_inexistente():
     assert respuesta.status_code == 401
 
 
-def test_estado_tarea_inexistente():
-    """Consultar estado de tarea inexistente debe devolver 404."""
+def test_estado_tarea_sin_autenticar():
+    """Consultar el estado sin autenticación debe devolver 401."""
     respuesta = client.get("/planes/estado/tarea-que-no-existe-xyz")
-    assert respuesta.status_code == 404
+    assert respuesta.status_code == 401
+
+
+def test_estado_tarea_inexistente():
+    """Una tarea inexistente debe devolver 404 a un usuario autenticado."""
+    app.dependency_overrides[get_current_user] = lambda: dummy_user
+    try:
+        respuesta = client.get("/planes/estado/tarea-que-no-existe-xyz")
+        assert respuesta.status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_estado_tarea_pertenece_a_otro_usuario():
+    """Un usuario no debe poder consultar la tarea de otro usuario."""
+    from backend.api.dependencies import tareas_planes
+
+    tarea_id = "tarea-prueba-otro-usuario"
+    tareas_planes[tarea_id] = {
+        "estado": "generando",
+        "progreso": 50,
+        "dia_actual": "Lunes",
+        "user_id": 12345,
+        "plan_id": None,
+        "error": None,
+    }
+
+    app.dependency_overrides[get_current_user] = lambda: dummy_user
+    try:
+        respuesta = client.get(f"/planes/estado/{tarea_id}")
+        assert respuesta.status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+        tareas_planes.pop(tarea_id, None)

@@ -7,28 +7,32 @@ def test_error_handlers_and_logging():
     client = TestClient(app)
     
     print("\n🚀 [1/3] Verificando RecursoNoEncontradoError -> HTTP 404...")
-    # Buscamos una tarea de plan inexistente
-    response = client.get("/planes/estado/inexistente-123")
-    assert response.status_code == 404, f"Se esperaba 404, se obtuvo {response.status_code}"
-    data = response.json()
-    assert data["error"] == "recurso_no_encontrado"
-    assert "inexistente-123" in data["detail"]
-    print("   ✅ RecursoNoEncontradoError capturado correctamente.")
-
-    # Registramos un usuario de prueba para poder autenticarnos y probar las dependencias de chat
+    # Registramos un usuario de prueba para autenticar la petición
     import uuid
     email = f"error.test.{uuid.uuid4().hex[:6]}@nutriai.com"
     password = "SuperPassword123!"
-    
-    # Registro
+
     reg_response = client.post("/auth/registro", json={
         "nombre": "Test Errores",
         "email": email,
         "password": password
     })
-    assert reg_response.status_code == 200
+    assert reg_response.status_code == 200, f"Error al registrar: {reg_response.text}"
+
     token = reg_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+
+    # Buscamos una tarea inexistente como usuario autenticado
+    response = client.get(
+        "/planes/estado/inexistente-123",
+        headers=headers
+    )
+
+    assert response.status_code == 404, f"Se esperaba 404, se obtuvo {response.status_code}"
+    data = response.json()
+    assert data["error"] == "recurso_no_encontrado"
+    assert data["detail"] == "Tarea no encontrada."
+    print("   ✅ RecursoNoEncontradoError capturado correctamente.")
 
     print("🚀 [2/3] Verificando SesionNoEncontradaError -> HTTP 404...")
     # Enviamos un mensaje de chat directamente sin llamar a /chat/iniciar primero

@@ -153,7 +153,7 @@ def mensaje_seguimiento(
                 
     elif accion == "regenerar_plan":
         # Creamos una tarea de segundo plano para regenerar
-        tarea_id = crear_tarea_plan()
+        tarea_id = crear_tarea_plan(user_id=current_user.id)
         background_tasks.add_task(
             generar_plan_background,
             tarea_id=tarea_id,

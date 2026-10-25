@@ -68,7 +68,7 @@ def generar_plan(
         "patologias": perfil_db.patologias or [],
     }
 
-    tarea_id = crear_tarea_plan()
+    tarea_id = crear_tarea_plan(user_id=current_user.id)
 
     background_tasks.add_task(
         generar_plan_background,
@@ -81,15 +81,20 @@ def generar_plan(
 
 
 @router.get("/estado/{tarea_id}", response_model=EstadoTareaResponse)
-def estado_tarea(tarea_id: str):
+def estado_tarea(
+    tarea_id: str,
+    current_user: User = Depends(get_current_user),
+):
     """
-    Consulta el progreso de una tarea de generación.
-    El cliente debe llamar a este endpoint periódicamente (polling)
-    hasta que estado sea 'completado' o 'error'.
+    Consulta el progreso de una tarea de generación,
+    verificando que pertenece al usuario autenticado.
     """
     tarea = obtener_tarea_plan(tarea_id)
-    if tarea is None:
-        raise RecursoNoEncontradoError(f"Tarea '{tarea_id}' no encontrada")
+
+    if tarea is None or tarea["user_id"] != current_user.id:
+        raise RecursoNoEncontradoError(
+            "Tarea no encontrada."
+        )
 
     return EstadoTareaResponse(**tarea)
 

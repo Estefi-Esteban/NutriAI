@@ -70,14 +70,14 @@ tareas_planes: dict[str, dict] = {}
 # }
 
 
-def crear_tarea_plan() -> str:
-    """Crea una nueva tarea de generación y devuelve su id."""
+def crear_tarea_plan(user_id: int) -> str:
+    """Crea una tarea de generación asociada a su propietario."""
     tarea_id = str(uuid.uuid4())
     tareas_planes[tarea_id] = {
         "estado": "iniciado",
         "progreso": 0,
         "dia_actual": None,
-        "user_id": None,
+        "user_id": user_id,
         "plan_id": None,
         "error": None,
     }
