@@ -74,11 +74,11 @@ class DietistAgent:
             model=self.MODEL,
             api_key=groq_api_key,
             temperature=self.TEMPERATURE,
-            max_completion_tokens=self.MAX_COMPLETION_TOKENS,
             reasoning_effort="low",
-            include_reasoning=False,
             model_kwargs={
-                "response_format": {"type": "json_object"}
+                "response_format": {"type": "json_object"},
+                "max_completion_tokens": self.MAX_COMPLETION_TOKENS,
+                "include_reasoning": False,
             },
         )
 

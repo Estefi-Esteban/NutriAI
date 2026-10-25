@@ -1,7 +1,7 @@
 import re
 import json
 from langchain_groq import ChatGroq
-from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.messages import SystemMessage, HumanMessage
 from backend.config import groq_api_key
 from backend.agents.prompts.prompt_loader import load_prompt
@@ -18,7 +18,7 @@ class FollowupAgent:
             api_key=groq_api_key,
             temperature=0.7,
         )
-        self.memory = ChatMessageHistory()
+        self.memory = InMemoryChatMessageHistory()
         
         # Guardamos la info para formatear el prompt del sistema
         self.perfil_data = perfil_data

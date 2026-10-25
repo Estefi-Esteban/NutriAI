@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from unittest.mock import patch
 
@@ -229,7 +229,7 @@ def test_endpoint_protegido_con_jwt_sin_sub():
     client = TestClient(app)
 
     payload = {
-        "exp": datetime.utcnow() + timedelta(minutes=10)
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=10)
     }
 
     token = jwt.encode(
@@ -253,7 +253,7 @@ def test_endpoint_protegido_con_sub_invalido():
 
     payload = {
         "sub": "esto-no-es-un-id",
-        "exp": datetime.utcnow() + timedelta(minutes=10),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
     }
 
     token = jwt.encode(
@@ -277,7 +277,7 @@ def test_endpoint_protegido_con_usuario_inexistente():
 
     payload = {
         "sub": "999999999",
-        "exp": datetime.utcnow() + timedelta(minutes=10),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
     }
 
     token = jwt.encode(

@@ -2,9 +2,8 @@ import re
 import json
 
 from langchain_groq import ChatGroq
-from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.messages import SystemMessage, HumanMessage
-
 from backend.config import groq_api_key
 from backend.utils.decorators import reintentar_llamada_llm
 from backend.agents.prompts.prompt_loader import load_prompt
@@ -39,7 +38,7 @@ class ProfileAgent:
         )
 
         # Memoria de la conversación
-        self.memory = ChatMessageHistory()
+        self.memory = InMemoryChatMessageHistory()
 
         # Estado del agente
         self.perfil_completo = False
