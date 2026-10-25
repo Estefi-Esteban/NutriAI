@@ -84,6 +84,12 @@ def _normalizar_dieta(valor: str) -> str:
 
     v = str(valor).lower().strip()
 
+    # Normalizar variantes para mantener la compatibilidad
+    equivalencias = {
+        "omnivora": "omnivoro",
+    }
+    v = equivalencias.get(v, v)
+
     if v not in valores_validos:
         raise ValueError(
             f"Tipo de dieta no válido: '{valor}'. "

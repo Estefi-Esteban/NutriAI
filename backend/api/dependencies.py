@@ -40,7 +40,7 @@ def obtener_sesion_chat(session_id: str, user_id: int) -> ProfileAgent:
 
     if sesion is None:
         raise SesionNoEncontradaError(
-            f"La sesión '{session_id}' no existe o ha expirado."
+            f"La sesión '{session_id}' no encontrada o expirada."
         )
 
     if sesion["user_id"] != user_id:

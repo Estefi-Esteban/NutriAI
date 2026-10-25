@@ -126,11 +126,11 @@ def test_full_system(mock_sleep):
     assert response.status_code == 200, f"Error: {response.text}"
     chat_start = response.json()
     print(f"   ✅ Chat iniciado con éxito. Saludo: '{chat_start['respuesta']}'")
-    
+    session_id = chat_start["session_id"]
     # 3. Enviar mensaje de Chat (Autenticado)
     print("🚀 [3/8] POST /chat/mensaje...")
     payload_msg = {
-        "session_id": str(user_id), # Pasamos el session_id aunque se ignore en favor de la sesión por user_id
+        "session_id": session_id, # Pasamos el session_id aunque se ignore en favor de la sesión por user_id
         "mensaje": "Quiero ganar músculo"
     }
     response = client.post("/chat/mensaje", json=payload_msg, headers=headers)
