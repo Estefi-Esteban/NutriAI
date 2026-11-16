@@ -1,32 +1,36 @@
 """
-exceptions.py
---------------
-Excepciones propias de NutriAI. Permiten distinguir errores esperados
-del dominio (perfil inválido, sesión no encontrada...) de errores
-inesperados de programación, y responder de forma distinta a cada uno.
+Excepciones propias de NutriAI.
 """
 
 
 class NutriAIError(Exception):
-    """Excepción base de la que heredan todos los errores del dominio."""
-    pass
+    """Base para errores esperados del dominio."""
 
 
 class AgenteError(NutriAIError):
-    """Error al comunicarse con un agente de IA (Groq, parseo de JSON, etc.)."""
-    pass
+    """Error al comunicarse con un agente de IA."""
 
 
 class SesionNoEncontradaError(NutriAIError):
-    """La sesión de chat o tarea solicitada no existe o expiró."""
-    pass
+    """La sesión solicitada no existe o ha expirado."""
 
 
 class PerfilInvalidoError(NutriAIError):
-    """Los datos del perfil no cumplen las validaciones necesarias."""
-    pass
+    """Los datos del perfil son incorrectos pero corregibles."""
+
+    def __init__(self, problemas: list[str] | tuple[str, ...]):
+        self.problemas = tuple(str(problema) for problema in problemas)
+        self.mensaje = "El perfil contiene datos no válidos."
+        super().__init__(self.mensaje + " " + " ".join(self.problemas))
+
+
+class PerfilNoAptoError(NutriAIError):
+    """El perfil requiere supervisión y no puede recibir el flujo automático."""
+
+    def __init__(self, mensaje: str):
+        self.mensaje = mensaje
+        super().__init__(mensaje)
 
 
 class RecursoNoEncontradoError(NutriAIError):
-    """Un recurso (usuario, plan, perfil) no existe en la base de datos."""
-    pass
+    """Un recurso no existe en la base de datos."""

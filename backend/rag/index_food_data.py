@@ -7,7 +7,7 @@ Procesa en lotes para no saturar memoria con 143K+ alimentos.
 Ejecución:
     python -m backend.rag.index_food_data
 """
-
+import math
 import pandas as pd
 import chromadb
 from chromadb.utils import embedding_functions
@@ -36,15 +36,27 @@ def construir_texto_descriptivo(row) -> str:
     return " - ".join(partes)
 
 
-def construir_metadata(row) -> dict:
-    """Construye los metadatos nutricionales que recuperaremos junto al resultado."""
-    def _num(valor, default=0.0):
-        try:
-            return float(valor)
-        except (ValueError, TypeError):
-            return default
 
-    return {
+def construir_metadata(row) -> dict:
+    """Construye metadatos compatibles con ChromaDB."""
+
+    def _num(valor) -> float | None:
+        """Convierte un nutriente conservando los valores desconocidos."""
+
+        if valor is None or isinstance(valor, bool):
+            return None
+
+        try:
+            numero = float(valor)
+        except (TypeError, ValueError):
+            return None
+
+        if not math.isfinite(numero) or numero < 0:
+            return None
+
+        return numero
+
+    metadata = {
         "nombre": str(row.get("product_name", ""))[:200],
         "kcal_100g": _num(row.get("energy-kcal_100g")),
         "proteinas_100g": _num(row.get("proteins_100g")),
@@ -56,6 +68,15 @@ def construir_metadata(row) -> dict:
         "sal_100g": _num(row.get("salt_100g")),
         "alergenos": str(row.get("allergens", ""))[:300],
     }
+
+    # ChromaDB no admite None en los metadatos.
+    # Omitimos los nutrientes desconocidos, pero conservamos los ceros.
+    return {
+        clave: valor
+        for clave, valor in metadata.items()
+        if valor is not None
+    }
+
 
 
 def indexar():

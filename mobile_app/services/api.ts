@@ -1,10 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
-
+import { Platform } from 'react-native';
 // Base URL configuration
 // Note: Use 'http://10.0.2.2:8000' for Android Emulator, or your local machine IP for physical devices.
-export const BASE_URL = 'https://nutriai-backend.up.railway.app';
-
+export const BASE_URL = 'http://localhost:8000';
 export interface UserInfo {
   id: number;
   nombre: string;
@@ -142,14 +141,19 @@ export const api = {
   },
 
   // --- PROFILE CHAT ---
-  iniciarChatPerfil: async (): Promise<{ respuesta: string }> => {
-    return request<{ respuesta: string }>('/chat/iniciar', { method: 'POST' });
+  iniciarChatPerfil: async (): Promise<{ session_id: string; respuesta: string }> => {
+    return request<{ session_id: string; respuesta: string }>('/chat/iniciar', {
+      method: 'POST',
+    });
   },
 
-  enviarMensajePerfil: async (mensaje: string): Promise<{ respuesta: string; perfil_completo: boolean; datos: any }> => {
+  enviarMensajePerfil: async (
+    sessionId: string,
+    mensaje: string
+  ): Promise<{ respuesta: string; perfil_completo: boolean; datos: any }> => {
     return request<{ respuesta: string; perfil_completo: boolean; datos: any }>('/chat/mensaje', {
       method: 'POST',
-      body: JSON.stringify({ session_id: 'ignorado', mensaje }),
+      body: JSON.stringify({ session_id: sessionId, mensaje }),
     });
   },
 
@@ -239,14 +243,52 @@ export const api = {
   },
 
   // --- VISION AGENT (Fase 3.3) ---
-  analizarPlato: async (uri: string, filename: string, mimeType: string): Promise<any> => {
+  analizarPlato: async (
+    uri: string,
+    filename: string,
+    mimeType: string
+  ): Promise<any> => {
     const formData = new FormData();
-    // @ts-ignore
-    formData.append('foto', {
-      uri,
-      name: filename,
-      type: mimeType,
-    });
+
+    const extensiones: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+    };
+
+    if (Platform.OS === 'web') {
+      const response = await fetch(uri);
+
+      if (!response.ok) {
+        throw new Error('No se pudo leer la imagen seleccionada.');
+      }
+
+      const blob = await response.blob();
+      const tipoReal = blob.type || mimeType;
+      const extension = extensiones[tipoReal];
+
+      if (!extension) {
+        throw new Error(`Formato de imagen no compatible: ${tipoReal}`);
+      }
+
+      formData.append('foto', blob, `plato.${extension}`);
+    } else {
+      const extension = extensiones[mimeType];
+
+      if (!extension) {
+        throw new Error(`Formato de imagen no compatible: ${mimeType}`);
+      }
+
+      const nombreValido = /\.(jpg|jpeg|png|webp)$/i.test(filename)
+        ? filename
+        : `plato.${extension}`;
+
+      formData.append('foto', {
+        uri,
+        name: nombreValido,
+        type: mimeType,
+      } as any);
+    }
 
     return request<any>('/vision/analizar-plato', {
       method: 'POST',

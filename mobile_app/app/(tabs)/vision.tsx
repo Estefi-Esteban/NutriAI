@@ -1,5 +1,14 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../../constants/Colors';
 import { api } from '../../services/api';
@@ -8,22 +17,111 @@ import { PrimaryButton } from '../../components/PrimaryButton';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+type MacroKey = 'kcal' | 'proteinas_g' | 'carbos_g' | 'grasas_g';
+
+type Macros = Partial<Record<MacroKey, number | null>> & {
+  alimentos_incluidos?: string[];
+  alimentos_sin_datos?: string[];
+  macros_incompletos?: string[];
+  es_parcial?: boolean;
+};
+
+type AlimentoAnalizado = {
+  nombre_detectado: string;
+  cantidad_g: number | null;
+  confianza_vision?: string;
+  notas_vision?: string | null;
+  verificado_rag: boolean;
+  nombre_rag?: string | null;
+  similitud_rag?: number | null;
+  origen_macros?: string | null;
+  motivo_no_verificado?: string | null;
+  macros_estimados?: Macros | null;
+  macros_verificados?: Macros | null;
+};
+
+type AnalisisPlato = {
+  descripcion_plato: string;
+  calidad_imagen?: string;
+  advertencia?: string | null;
+  alimentos: AlimentoAnalizado[];
+  totales: Macros;
+  totales_estimados?: Macros | null;
+  totales_verificados?: Macros | null;
+  totales_combinados?: Macros | null;
+  validacion_nutricional?: {
+    alimentos_verificados?: number;
+    total_alimentos?: number;
+    totales_verificados_completos?: boolean;
+    alimentos_con_error_rag?: string[];
+  };
+  disclaimer?: string;
+};
+
+const MACROS: { key: MacroKey; label: string; suffix: string; color: string }[] = [
+  { key: 'kcal', label: 'Energía', suffix: ' kcal', color: Colors.primary },
+  { key: 'proteinas_g', label: 'Proteínas', suffix: ' g', color: Colors.macroProtein },
+  { key: 'carbos_g', label: 'Carbohidratos', suffix: ' g', color: Colors.macroCarbs },
+  { key: 'grasas_g', label: 'Grasas', suffix: ' g', color: Colors.macroFat },
+];
+
+function formatMacro(value: number | null | undefined, suffix: string): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 'Sin datos';
+  return `${Number(value.toFixed(1))}${suffix}`;
+}
+
+function getMotivoNoVerificado(motivo?: string | null): string {
+  const motivos: Record<string, string> = {
+    cantidad_no_valida: 'No se conoce una cantidad válida en gramos.',
+    nombre_no_disponible: 'No se pudo identificar el alimento con suficiente detalle.',
+    error_rag: 'No se pudo consultar la base nutricional.',
+    similitud_insuficiente: 'La coincidencia con la base nutricional no es suficientemente fiable.',
+    datos_rag_incompletos: 'La base nutricional no contiene todos los macros necesarios.',
+    sin_coincidencia: 'No se encontró una coincidencia adecuada en la base nutricional.',
+  };
+  return motivos[motivo || ''] || 'Los macros de este alimento no están verificados por la base nutricional.';
+}
+
+function MacroGrid({ data }: { data?: Macros | null }) {
+  return (
+    <View style={styles.totalsGrid}>
+      {MACROS.map((macro) => (
+        <View key={macro.key} style={[styles.macroCard, { borderLeftColor: macro.color }]}>
+          <Text style={styles.macroLabel}>{macro.label}</Text>
+          <Text style={styles.macroValue}>{formatMacro(data?.[macro.key], macro.suffix)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function VisionScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [analysis, setAnalysis] = useState<any>(null);
+  const [analysis, setAnalysis] = useState<AnalisisPlato | null>(null);
   const [registering, setRegistering] = useState(false);
   const router = useRouter();
 
+  const totalesCombinados = analysis?.totales_combinados ?? analysis?.totales;
+
+  const macrosCombinadosCompletos = useMemo(() => {
+    if (!totalesCombinados) return false;
+    return MACROS.every(({ key }) => {
+      const value = totalesCombinados[key];
+      return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+    });
+  }, [totalesCombinados]);
+
   const pickImage = async (useCamera: boolean) => {
     try {
-      let result;
       const options: ImagePicker.ImagePickerOptions = {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
       };
+
+      let result: ImagePicker.ImagePickerResult;
 
       if (useCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -41,62 +139,95 @@ export default function VisionScreen() {
         result = await ImagePicker.launchImageLibraryAsync(options);
       }
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        setImageUri(asset.uri);
-        setAnalysis(null); // Clear previous analysis
+      if (!result.canceled && result.assets?.length) {
+        setImageUri(result.assets[0].uri);
+        setAnalysis(null);
       }
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'No se pudo seleccionar la imagen.');
     }
   };
 
   const handleAnalyze = async () => {
-    if (!imageUri) return;
+    if (!imageUri || loading) return;
+
     setLoading(true);
     try {
       const filename = imageUri.split('/').pop() || 'plato.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      const extension = filename.split('.').pop()?.toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+      };
+      const mimeType = mimeTypes[extension || ''] || 'image/jpeg';
 
-      const data = await api.analizarPlato(imageUri, filename, type);
+      const data = (await api.analizarPlato(imageUri, filename, mimeType)) as AnalisisPlato;
+      if (!data || !Array.isArray(data.alimentos) || !data.totales) {
+        throw new Error('El servidor devolvió una respuesta de análisis incompleta.');
+      }
       setAnalysis(data);
-    } catch (e: any) {
-      Alert.alert('Error de análisis', e.message || 'No se pudo analizar la imagen.');
+    } catch (error: any) {
+      Alert.alert('Error de análisis', error?.message || 'No se pudo analizar la imagen.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleRegister = async () => {
-    if (!analysis || !analysis.totales) return;
-    setRegistering(true);
-    try {
-      const name = analysis.resumen_plato || 'Plato Detectado';
-      const payload = {
-        nombre_plato: name,
-        kcal: analysis.totales.kcal,
-        proteinas_g: analysis.totales.proteinas_g,
-        carbos_g: analysis.totales.carbos_g,
-        grasas_g: analysis.totales.grasas_g,
-      };
-      await api.registrarMacrosPlato(payload);
-      Alert.alert('Registrado', 'Los macros del plato han sido añadidos a tu seguimiento diario.', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)') }
-      ]);
-    } catch (e: any) {
-      Alert.alert('Error', 'No se pudo registrar el plato en el diario.');
-    } finally {
-      setRegistering(false);
+    if (!analysis || !totalesCombinados) return;
+
+    if (!macrosCombinadosCompletos) {
+      Alert.alert(
+        'No se puede registrar todavía',
+        'Faltan uno o más valores nutricionales. No vamos a guardar los datos incompletos como si fueran un total válido.'
+      );
+      return;
     }
+
+    Alert.alert(
+      'Registrar estimación',
+      'El total combinado puede incluir valores estimados por IA y valores calculados con datos de Qdrant. Se guardará como una estimación nutricional, no como una medición exacta.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Registrar',
+          onPress: async () => {
+            setRegistering(true);
+            try {
+              await api.registrarMacrosPlato({
+                nombre_plato: analysis.descripcion_plato?.trim() || 'Plato analizado por visión',
+                kcal: totalesCombinados.kcal as number,
+                proteinas_g: totalesCombinados.proteinas_g as number,
+                carbos_g: totalesCombinados.carbos_g as number,
+                grasas_g: totalesCombinados.grasas_g as number,
+              });
+              Alert.alert('Registrado', 'La estimación nutricional se ha añadido a tu diario.', [
+                { text: 'OK', onPress: () => router.replace('/(tabs)') },
+              ]);
+            } catch (error: any) {
+              Alert.alert(
+                'Error al registrar',
+                error?.message || 'No se pudo registrar el plato en el diario.'
+              );
+            } finally {
+              setRegistering(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>📸 Foto a Macros</Text>
-      <Text style={styles.subtitle}>Haz una foto a tu plato de comida para identificar sus alimentos y estimar sus macronutrientes.</Text>
+      <Text style={styles.title}>📸 Foto a macros</Text>
+      <Text style={styles.subtitle}>
+        Haz una foto de tu plato para identificar los alimentos y consultar sus macronutrientes.
+        Diferenciamos las estimaciones de IA de los datos contrastados con la base nutricional.
+      </Text>
 
-      {/* Image Preview Box */}
       <View style={styles.imageBox}>
         {imageUri ? (
           <Image source={{ uri: imageUri }} style={styles.previewImage} />
@@ -108,22 +239,20 @@ export default function VisionScreen() {
         )}
       </View>
 
-      {/* Buttons to Pick Image */}
       <View style={styles.btnRow}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => pickImage(true)}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => pickImage(true)} disabled={loading}>
           <Ionicons name="camera" size={20} color={Colors.text} />
           <Text style={styles.actionBtnText}>Cámara</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => pickImage(false)}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => pickImage(false)} disabled={loading}>
           <Ionicons name="images" size={20} color={Colors.text} />
           <Text style={styles.actionBtnText}>Galería</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Action Button: Analyze */}
       {imageUri && !analysis && (
         <PrimaryButton
-          title="⚡ Analizar Plato"
+          title="⚡ Analizar plato"
           loading={loading}
           onPress={handleAnalyze}
           style={styles.analyzeBtn}
@@ -137,57 +266,153 @@ export default function VisionScreen() {
         </View>
       )}
 
-      {/* Analysis Output */}
       {analysis && (
         <View style={styles.analysisContainer}>
           <GlassCard>
-            <Text style={styles.sectionTitle}>Análisis del Plato</Text>
-            <Text style={styles.plateSummary}>{analysis.resumen_plato}</Text>
-            
-            <Text style={styles.subTitle}>Totales Estimados</Text>
-            <View style={styles.totalsRow}>
-              <View style={[styles.badge, styles.badgeKcal]}>
-                <Text style={styles.badgeLabel}>Kcal</Text>
-                <Text style={styles.badgeVal}>{analysis.totales.kcal}</Text>
-              </View>
-              <View style={[styles.badge, styles.badgeProt]}>
-                <Text style={styles.badgeLabel}>Prot</Text>
-                <Text style={styles.badgeVal}>{analysis.totales.proteinas_g}g</Text>
-              </View>
-              <View style={[styles.badge, styles.badgeCarb]}>
-                <Text style={styles.badgeLabel}>Carb</Text>
-                <Text style={styles.badgeVal}>{analysis.totales.carbos_g}g</Text>
-              </View>
-              <View style={[styles.badge, styles.badgeFat]}>
-                <Text style={styles.badgeLabel}>Grasa</Text>
-                <Text style={styles.badgeVal}>{analysis.totales.grasas_g}g</Text>
-              </View>
+            <Text style={styles.sectionTitle}>Análisis del plato</Text>
+            <Text style={styles.plateSummary}>
+              {analysis.descripcion_plato || 'No se ha generado una descripción del plato.'}
+            </Text>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaText}>Calidad de imagen: {analysis.calidad_imagen || 'No indicada'}</Text>
+              <Text style={styles.metaText}>
+                Verificados: {analysis.validacion_nutricional?.alimentos_verificados ?? 0}/
+                {analysis.validacion_nutricional?.total_alimentos ?? analysis.alimentos.length}
+              </Text>
             </View>
           </GlassCard>
 
           <GlassCard>
-            <Text style={styles.sectionTitle}>Ingredientes Detectados</Text>
-            {analysis.alimentos && analysis.alimentos.map((food: any, i: number) => (
-              <View key={i} style={styles.foodRow}>
-                <View style={styles.foodRowLeft}>
-                  <Ionicons
-                    name={food.verificado_rag ? 'checkmark-circle-outline' : 'help-circle-outline'}
-                    size={18}
-                    color={food.verificado_rag ? Colors.success : Colors.warning}
-                  />
-                  <Text style={styles.foodName}>{food.nombre_detectado}</Text>
-                </View>
-                <Text style={styles.foodQty}>{food.cantidad_g}g</Text>
-              </View>
-            ))}
+            <Text style={styles.sectionTitle}>Totales combinados</Text>
+            <Text style={styles.helperText}>
+              Se utiliza una sola fuente por alimento: Qdrant cuando está verificado y estimación visual cuando no lo está.
+            </Text>
+            <MacroGrid data={totalesCombinados} />
+            {!!totalesCombinados?.macros_incompletos?.length && (
+              <Text style={styles.warningText}>
+                Datos incompletos: {totalesCombinados.macros_incompletos.join(', ')}.
+              </Text>
+            )}
           </GlassCard>
 
+          <GlassCard>
+            <Text style={styles.sectionTitle}>Datos estimados por IA</Text>
+            <Text style={styles.helperText}>
+              Solo incluye alimentos no verificados para los que la IA ha proporcionado estimaciones.
+            </Text>
+            <MacroGrid data={analysis.totales_estimados} />
+            {!!analysis.totales_estimados?.macros_incompletos?.length && (
+              <Text style={styles.warningText}>
+                No se pueden completar estos macros: {analysis.totales_estimados.macros_incompletos.join(', ')}.
+              </Text>
+            )}
+          </GlassCard>
+
+          <GlassCard>
+            <Text style={styles.sectionTitle}>Datos verificados por Qdrant</Text>
+            <Text style={styles.helperText}>
+              Calculados con los valores nutricionales de referencia y la cantidad estimada en gramos.
+            </Text>
+            <MacroGrid data={analysis.totales_verificados} />
+            {analysis.totales_verificados?.es_parcial && (
+              <Text style={styles.warningText}>
+                Es un subtotal: hay alimentos del plato que no se han podido verificar.
+              </Text>
+            )}
+            {!!analysis.totales_verificados?.macros_incompletos?.length && (
+              <Text style={styles.warningText}>
+                No se pueden completar estos macros: {analysis.totales_verificados.macros_incompletos.join(', ')}.
+              </Text>
+            )}
+          </GlassCard>
+
+          <GlassCard>
+            <Text style={styles.sectionTitle}>Ingredientes detectados</Text>
+            {analysis.alimentos.length === 0 ? (
+              <Text style={styles.helperText}>No se han detectado alimentos.</Text>
+            ) : (
+              analysis.alimentos.map((food, index) => {
+                const macros = food.verificado_rag ? food.macros_verificados : food.macros_estimados;
+                return (
+                  <View key={`${food.nombre_detectado}-${index}`} style={styles.foodCard}>
+                    <View style={styles.foodHeader}>
+                      <View style={styles.foodTitleRow}>
+                        <Ionicons
+                          name={food.verificado_rag ? 'checkmark-circle' : 'alert-circle'}
+                          size={19}
+                          color={food.verificado_rag ? Colors.success : Colors.warning}
+                        />
+                        <Text style={styles.foodName}>{food.nombre_detectado}</Text>
+                      </View>
+                      <Text style={styles.foodQty}>
+                        {typeof food.cantidad_g === 'number' ? `${food.cantidad_g} g` : 'Cantidad desconocida'}
+                      </Text>
+                    </View>
+
+                    <Text style={food.verificado_rag ? styles.verifiedLabel : styles.unverifiedLabel}>
+                      {food.verificado_rag
+                        ? `Verificado por Qdrant${food.nombre_rag ? ` · ${food.nombre_rag}` : ''}`
+                        : food.origen_macros === 'estimacion_visual'
+                          ? 'Macros estimados por IA · No verificados'
+                          : 'Sin datos nutricionales disponibles'}
+                    </Text>
+
+                    {!food.verificado_rag && (
+                      <Text style={styles.reasonText}>
+                        {getMotivoNoVerificado(food.motivo_no_verificado)}
+                      </Text>
+                    )}
+
+                    <View style={styles.foodMacros}>
+                      {MACROS.map((macro) => (
+                        <Text key={macro.key} style={styles.foodMacroText}>
+                          {macro.label}: {formatMacro(macros?.[macro.key], macro.suffix)}
+                        </Text>
+                      ))}
+                    </View>
+
+                    {!!food.notas_vision && (
+                      <Text style={styles.reasonText}>{food.notas_vision}</Text>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </GlassCard>
+
+          {!!analysis.advertencia && (
+            <View style={styles.warningBox}>
+              <Ionicons name="warning-outline" size={20} color={Colors.warning} />
+              <Text style={styles.warningBoxText}>{analysis.advertencia}</Text>
+            </View>
+          )}
+
+          {!!analysis.disclaimer && (
+            <Text style={styles.disclaimer}>{analysis.disclaimer}</Text>
+          )}
+
           <PrimaryButton
-            title="💾 Registrar en mi Diario de hoy"
+            title="💾 Registrar estimación en mi diario"
             loading={registering}
             onPress={handleRegister}
+            disabled={!macrosCombinadosCompletos || registering}
             style={styles.registerBtn}
           />
+          {!macrosCombinadosCompletos && (
+            <Text style={styles.blockedText}>
+              No se puede registrar: el total combinado contiene uno o más macros sin datos completos.
+            </Text>
+          )}
+
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={() => {
+              setAnalysis(null);
+            }}
+          >
+            <Ionicons name="refresh-outline" size={18} color={Colors.primary} />
+            <Text style={styles.retryText}>Analizar otra imagen</Text>
+          </TouchableOpacity>
         </View>
       )}
     </ScrollView>
@@ -277,75 +502,161 @@ const styles = StyleSheet.create({
   },
   analysisContainer: {
     marginTop: 12,
+    gap: 12,
   },
   sectionTitle: {
     color: Colors.text,
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   plateSummary: {
     color: Colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  subTitle: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  totalsRow: {
+  metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  badge: {
-    flex: 1,
-    borderRadius: 12,
-    paddingVertical: 10,
-    alignItems: 'center',
-    marginHorizontal: 3,
+  metaText: {
+    color: Colors.textMuted,
+    fontSize: 12,
   },
-  badgeLabel: {
-    color: Colors.text,
-    fontSize: 10,
+  helperText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  totalsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  macroCard: {
+    width: '48%',
+    backgroundColor: Colors.cardBg,
+    borderRadius: 10,
+    borderLeftWidth: 3,
+    padding: 10,
+  },
+  macroLabel: {
+    color: Colors.textSecondary,
+    fontSize: 11,
     fontWeight: '600',
-    opacity: 0.8,
   },
-  badgeVal: {
+  macroValue: {
     color: Colors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
-    marginTop: 4,
+    marginTop: 5,
   },
-  badgeKcal: { backgroundColor: Colors.primary + '15' },
-  badgeProt: { backgroundColor: Colors.macroProtein + '20' },
-  badgeCarb: { backgroundColor: Colors.macroCarbs + '20' },
-  badgeFat: { backgroundColor: Colors.macroFat + '20' },
-  foodRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
+  warningText: {
+    color: Colors.warning,
+    fontSize: 12,
+    marginTop: 10,
+    lineHeight: 17,
+  },
+  foodCard: {
+    paddingVertical: 12,
     borderBottomColor: Colors.cardBorder,
     borderBottomWidth: 1,
   },
-  foodRowLeft: {
+  foodHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  foodTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   foodName: {
     color: Colors.text,
     fontSize: 14,
-    marginLeft: 8,
+    fontWeight: '700',
+    marginLeft: 7,
+    flexShrink: 1,
   },
   foodQty: {
     color: Colors.primary,
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 12,
+  },
+  verifiedLabel: {
+    color: Colors.success,
+    fontSize: 12,
+    marginTop: 6,
+    fontWeight: '600',
+  },
+  unverifiedLabel: {
+    color: Colors.warning,
+    fontSize: 12,
+    marginTop: 6,
+    fontWeight: '600',
+  },
+  reasonText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginTop: 5,
+    lineHeight: 17,
+  },
+  foodMacros: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  foodMacroText: {
+    color: Colors.text,
+    fontSize: 11,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: Colors.cardBg,
+    borderColor: Colors.warning,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  warningBoxText: {
+    color: Colors.text,
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 18,
+  },
+  disclaimer: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    lineHeight: 17,
   },
   registerBtn: {
-    marginVertical: 16,
+    marginTop: 8,
+  },
+  blockedText: {
+    color: Colors.warning,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 7,
+  },
+  retryText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
