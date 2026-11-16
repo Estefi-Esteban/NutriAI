@@ -8,6 +8,8 @@ pasan por aquí, manteniendo el resto del código limpio de SQL.
 
 from sqlalchemy.orm import Session
 
+from backend.utils.health_limits import validar_perfil
+
 from backend.database.models import (
     User,
     UserProfile,
@@ -216,6 +218,9 @@ def guardar_perfil(db: Session, user_id: int, datos: dict) -> UserProfile:
     """
     Crea o actualiza el perfil de un usuario.
     """
+
+    # Validar antes de consultar o modificar entidades persistentes.
+    validar_perfil(datos)
 
     perfil = (
         db.query(UserProfile)

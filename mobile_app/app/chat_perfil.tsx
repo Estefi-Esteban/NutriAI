@@ -16,6 +16,7 @@ interface Message {
 export default function ChatPerfilScreen() {
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -34,7 +35,13 @@ export default function ChatPerfilScreen() {
     const startSession = async () => {
       setLoading(true);
       try {
+        setSessionId(null);
+        setMessages([]);
         const res = await api.iniciarChatPerfil();
+        if (!res.session_id) {
+          throw new Error('El servidor no ha devuelto un identificador de sesión.');
+        }
+        setSessionId(res.session_id);
         setMessages([{ role: 'ai', text: res.respuesta }]);
       } catch (e: any) {
         Alert.alert('Error', 'No se pudo iniciar la sesión de chat.');
@@ -53,7 +60,7 @@ export default function ChatPerfilScreen() {
             <Ionicons name="shield-checkmark-outline" size={48} color={Colors.primary} />
           </View>
           <Text style={styles.disclaimerTitle}>Aviso y Deslinde Médico</Text>
-          
+
           <ScrollView style={styles.disclaimerTextScroll} showsVerticalScrollIndicator={false}>
             <Text style={styles.disclaimerText}>
               NutriAI es una herramienta de apoyo nutricional y un asistente inteligente basado en Inteligencia Artificial.
@@ -69,13 +76,13 @@ export default function ChatPerfilScreen() {
             </Text>
           </ScrollView>
 
-          <PrimaryButton 
-            title="Entendido y acepto continuar" 
-            onPress={() => setDisclaimerAceptado(true)} 
+          <PrimaryButton
+            title="Entendido y acepto continuar"
+            onPress={() => setDisclaimerAceptado(true)}
           />
-          
-          <TouchableOpacity 
-            style={styles.disclaimerCancelBtn} 
+
+          <TouchableOpacity
+            style={styles.disclaimerCancelBtn}
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
@@ -88,14 +95,20 @@ export default function ChatPerfilScreen() {
 
   const handleSend = async () => {
     if (!inputValue.trim() || loading) return;
-
+    if (!sessionId) {
+      Alert.alert(
+        'Chat no disponible',
+        'La sesión todavía no se ha iniciado. Espera un momento o vuelve a intentarlo.'
+      );
+      return;
+    }
     const userText = inputValue.trim();
     setInputValue('');
     setMessages(prev => [...prev, { role: 'user', text: userText }]);
     setLoading(true);
 
     try {
-      const res = await api.enviarMensajePerfil(userText);
+      const res = await api.enviarMensajePerfil(sessionId, userText);
       setMessages(prev => [...prev, { role: 'ai', text: res.respuesta }]);
 
       if (res.perfil_completo) {
@@ -116,7 +129,7 @@ export default function ChatPerfilScreen() {
 
     try {
       const { tarea_id } = await api.generarPlan(perfil);
-      
+
       // Start polling
       const interval = setInterval(async () => {
         try {
