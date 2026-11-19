@@ -6,6 +6,7 @@ en segundo plano (BackgroundTasks de FastAPI) y reportar progreso
 a través del diccionario de tareas en memoria.
 """
 
+import logging
 import time
 from sqlalchemy.exc import IntegrityError
 
@@ -19,6 +20,9 @@ from backend.database.repositories.plan_repository import guardar_plan
 from backend.database.models import User
 from backend.api.dependencies import actualizar_tarea_plan
 from backend.database.repositories.protocol_repository import obtener_protocolo
+from backend.utils.exceptions import PerfilInvalidoError, PerfilNoAptoError
+
+logger = logging.getLogger(__name__)
 
 PAUSA_ENTRE_DIAS_SEG = 15
 
@@ -128,9 +132,23 @@ def generar_plan_background(tarea_id: str, perfil: dict, user_id: int) -> None:
             plan_id=plan_id,
         )
 
-    except Exception as exc:
+    except PerfilNoAptoError as exc:
+        logger.warning("Plan %s (user_id=%s) no generado: perfil no apto", tarea_id, user_id)
+        actualizar_tarea_plan(tarea_id, estado="error", error=exc.mensaje)
+
+    except PerfilInvalidoError as exc:
+        logger.warning("Plan %s (user_id=%s): perfil inválido: %s", tarea_id, user_id, exc)
         actualizar_tarea_plan(
             tarea_id,
             estado="error",
-            error=str(exc),
+            error="Hay datos del perfil que no son válidos: " + " ".join(exc.problemas),
+        )
+
+    except Exception:
+        # El detalle técnico va a los logs; al cliente solo un mensaje genérico.
+        logger.exception("Plan %s (user_id=%s): fallo inesperado generando el plan", tarea_id, user_id)
+        actualizar_tarea_plan(
+            tarea_id,
+            estado="error",
+            error="No se pudo generar el plan. Inténtalo de nuevo en unos minutos.",
         )

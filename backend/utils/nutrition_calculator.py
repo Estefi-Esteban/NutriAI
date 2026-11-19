@@ -13,8 +13,15 @@ Autora: NutriAI
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
+
+from backend.utils.health_limits import (
+    PROTEINA_MAX_PCT_KCAL,
+    aplicar_suelo_calorico,
+    validar_biometria_para_calculo,
+    validar_elegibilidad_plan,
+)
 
 # ---------------------------------------------------------------------------
 # Factores de actividad (Harris-Benedict)
@@ -102,6 +109,10 @@ class ResultadoNutricional:
     # Hidratación
     hidratacion_ml: int
 
+    # Seguridad: avisos para el usuario y si las calorías se elevaron al suelo seguro
+    advertencias: list[str] = field(default_factory=list)
+    ajustado_por_seguridad: bool = False
+
     def __str__(self) -> str:
         return (
             f"TMB:              {self.tmb:.0f} kcal\n"
@@ -129,6 +140,8 @@ class ResultadoNutricional:
                 "grasas_kcal":    round(self.grasas_kcal, 1),
             },
             "hidratacion_ml": self.hidratacion_ml,
+            "advertencias": list(self.advertencias),
+            "ajustado_por_seguridad": self.ajustado_por_seguridad,
         }
 
 
@@ -278,6 +291,8 @@ def calcular_macros(
 
     # 1 — Proteínas
     proteinas_g    = ratios["proteina_por_kg"] * peso_kg
+    # Tope: la proteína nunca supera un % de las kcal totales (ver health_limits)
+    proteinas_g    = min(proteinas_g, calorias * PROTEINA_MAX_PCT_KCAL / KCAL_PROTEINA)
     proteinas_kcal = proteinas_g * KCAL_PROTEINA
 
     # 2 — Grasas
@@ -379,6 +394,11 @@ def calcular_todo(perfil) -> ResultadoNutricional:
     edad       = int(_get("edad"))
     sexo       = str(_get("sexo"))
 
+    # Seguridad: datos plausibles y solo adultos (lanzan PerfilInvalidoError /
+    # PerfilNoAptoError, definidos en backend.utils.exceptions)
+    validar_biometria_para_calculo(peso_kg, altura_cm)
+    validar_elegibilidad_plan({"edad": edad})
+
     # nivel_actividad y objetivo_principal pueden ser Enum o string
     nivel_raw  = str(_get("nivel_actividad")).split(".")[-1]   # "NivelActividad.sedentario" → "sedentario"
     objetivo_raw   = str(_get("objetivo_principal")).split(".")[-1]
@@ -389,7 +409,18 @@ def calcular_todo(perfil) -> ResultadoNutricional:
     # ── Cadena de cálculo ──────────────────────────────────────────────
     tmb       = calcular_tmb(peso_kg, altura_cm, edad, sexo)
     tdee      = calcular_tdee(tmb, nivel_act)
-    calorias  = calcular_calorias_objetivo(tdee, objetivo)
+    calorias_brutas = calcular_calorias_objetivo(tdee, objetivo)
+
+    # Suelo calórico: nunca por debajo de un mínimo seguro
+    calorias, ajustado = aplicar_suelo_calorico(calorias_brutas, sexo, tmb)
+    advertencias: list[str] = []
+    if ajustado:
+        advertencias.append(
+            f"El objetivo calculado ({calorias_brutas:.0f} kcal) quedaba por debajo del "
+            f"mínimo seguro; se ha ajustado a {calorias:.0f} kcal. "
+            "Consulta con un profesional sanitario antes de plantear un déficit mayor."
+        )
+
     macros    = calcular_macros(calorias, peso_kg, objetivo)
 
     hidratacion_ml = round(peso_kg * ML_POR_KG)
@@ -405,6 +436,8 @@ def calcular_todo(perfil) -> ResultadoNutricional:
         carbos_kcal=macros["carbos_kcal"],
         grasas_kcal=macros["grasas_kcal"],
         hidratacion_ml=hidratacion_ml,
+        advertencias=advertencias,
+        ajustado_por_seguridad=ajustado,
     )
 
 
