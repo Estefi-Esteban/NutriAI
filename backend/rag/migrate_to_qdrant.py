@@ -5,12 +5,22 @@ migrate_to_qdrant.py
 Migra los alimentos de alimentos_limpios.csv a Qdrant Cloud.
 
 IMPORTANTE:
-Esta versión RECONSTRUYE la colección "alimentos" antes de migrar.
-Por tanto, reemplaza la versión anterior del dataset.
+Esta migración ELIMINA y vuelve a crear la colección "alimentos".
+Por seguridad, si la colección ya existe el script se detiene sin modificar
+nada, salvo que se autorice de forma explícita:
+
+    python -m backend.rag.migrate_to_qdrant
+        -> aborta si 'alimentos' ya existe (comportamiento por defecto)
+
+    python -m backend.rag.migrate_to_qdrant --reconstruir --confirmar alimentos
+        -> elimina y reconstruye la colección
+
+Antes de reconstruir, crea un snapshot de la colección en Qdrant Cloud.
 
 VERSIÓN OPTIMIZADA CON FASTEMBED
 """
 
+import argparse
 import os
 import sys
 import uuid
@@ -327,18 +337,70 @@ def _construir_payload(row: pd.Series) -> dict | None:
 # Gestión de la colección Qdrant
 # ---------------------------------------------------------------------------
 
-def reconstruir_coleccion(cliente: QdrantClient) -> None:
+class ReconstruccionNoAutorizadaError(RuntimeError):
+    """Se intentó eliminar una colección existente sin autorización explícita."""
+
+
+def comprobar_autorizacion_reconstruccion(
+    *,
+    existe: bool,
+    puntos_existentes: int | None,
+    reconstruir: bool,
+    confirmar: str | None,
+) -> None:
+    """
+    Lanza ReconstruccionNoAutorizadaError si la migración eliminaría una
+    colección existente sin autorización explícita.
+
+    Se exige DOBLE confirmación: la opción --reconstruir y escribir el nombre
+    exacto de la colección en --confirmar. Si la colección no existe, no hay
+    nada que proteger.
+    """
+    if not existe:
+        return
+
+    detalle = ""
+    if puntos_existentes is not None:
+        detalle = f" con {puntos_existentes:,} puntos".replace(",", ".")
+
+    if not reconstruir:
+        raise ReconstruccionNoAutorizadaError(
+            f"La colección '{COLECCION}' ya existe{detalle} y esta migración la "
+            "ELIMINARÍA. No se ha modificado nada. Si de verdad quieres "
+            "reconstruirla, crea antes un snapshot en Qdrant Cloud y ejecuta: "
+            f"python -m backend.rag.migrate_to_qdrant --reconstruir --confirmar {COLECCION}"
+        )
+
+    if confirmar != COLECCION:
+        raise ReconstruccionNoAutorizadaError(
+            f"Para reconstruir la colección '{COLECCION}'{detalle} debes confirmar "
+            f"su nombre exacto con: --confirmar {COLECCION}. No se ha modificado nada."
+        )
+
+
+def reconstruir_coleccion(
+    cliente: QdrantClient,
+    *,
+    autorizado: bool = False,
+) -> None:
     """
     Elimina la colección actual 'alimentos', si existe,
     y crea una nueva vacía con la configuración correcta.
 
-    ATENCIÓN: esta operación elimina los puntos existentes.
+    ATENCIÓN: esta operación elimina los puntos existentes. Si la colección
+    existe y `autorizado` es False, lanza ReconstruccionNoAutorizadaError sin
+    modificar nada.
     """
 
     colecciones = [
         coleccion.name
         for coleccion in cliente.get_collections().collections
     ]
+
+    if COLECCION in colecciones and not autorizado:
+        raise ReconstruccionNoAutorizadaError(
+            f"La colección '{COLECCION}' existe y no se ha autorizado su eliminación."
+        )
 
     if COLECCION in colecciones:
         logger.warning(
@@ -377,7 +439,10 @@ def reconstruir_coleccion(cliente: QdrantClient) -> None:
 # ---------------------------------------------------------------------------
 
 
-def migrar() -> None:
+def migrar(
+    reconstruir: bool = False,
+    confirmar: str | None = None,
+) -> None:
 
     # -----------------------------------------------------------------------
     # 1. Variables de entorno
@@ -407,6 +472,30 @@ def migrar() -> None:
         url=qdrant_url,
         api_key=qdrant_api_key,
     )
+
+    # -----------------------------------------------------------------------
+    # 1b. Protección: no eliminar una colección existente sin autorización
+    # -----------------------------------------------------------------------
+
+    nombres_colecciones = {
+        coleccion.name
+        for coleccion in cliente.get_collections().collections
+    }
+    existe = COLECCION in nombres_colecciones
+    puntos_existentes = (
+        cliente.get_collection(COLECCION).points_count if existe else None
+    )
+
+    try:
+        comprobar_autorizacion_reconstruccion(
+            existe=existe,
+            puntos_existentes=puntos_existentes,
+            reconstruir=reconstruir,
+            confirmar=confirmar,
+        )
+    except ReconstruccionNoAutorizadaError as exc:
+        logger.error("❌ %s", exc)
+        sys.exit(1)
 
     # -----------------------------------------------------------------------
     # 2. Comprobar CSV
@@ -472,7 +561,7 @@ def migrar() -> None:
     # Esta función elimina la colección existente.
     # No ejecutar sin autorización y sin una copia de seguridad.
 
-    reconstruir_coleccion(cliente)
+    reconstruir_coleccion(cliente, autorizado=existe and reconstruir)
 
     # -----------------------------------------------------------------------
     # 5. Migración por lotes
@@ -722,5 +811,26 @@ def migrar() -> None:
         )
 
 
+def _parsear_argumentos(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Migra alimentos_limpios.csv a Qdrant. Por seguridad NO elimina una "
+            "colección existente salvo que se autorice explícitamente."
+        )
+    )
+    parser.add_argument(
+        "--reconstruir",
+        action="store_true",
+        help="Permite ELIMINAR y recrear la colección si ya existe.",
+    )
+    parser.add_argument(
+        "--confirmar",
+        metavar="NOMBRE",
+        help=f"Nombre exacto de la colección a eliminar (debe ser '{COLECCION}').",
+    )
+    return parser.parse_args(argv)
+
+
 if __name__ == "__main__":
-    migrar()
+    argumentos = _parsear_argumentos()
+    migrar(reconstruir=argumentos.reconstruir, confirmar=argumentos.confirmar)
